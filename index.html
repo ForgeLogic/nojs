@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,18 +8,18 @@
     <script src="wasm_exec.js"></script>
     <script src="core.js"></script>
     <script src="labtests.js"></script>
-    <script>
-        // Load components
-        loadComponent('header', 'header.html');
-        loadComponent('content', 'main.html');
-        loadComponent('footer', 'footer.html');
-    </script>
 </head>
-<body>
-    <h1>Go WebAssembly</h1>
 
-    <div id="header"></div>
-    <div id="content"></div>
-    <div id="footer"></div>
+<body>
+    <main>
+        <p>Welcome to my web app!</p>
+
+        <input type="number" id="num1" placeholder="Enter first number">
+        <input type="number" id="num2" placeholder="Enter second number">
+        <button onclick="callAddFunction()">Add Numbers</button>
+    </main>
+
+    <div id="app"></div>
 </body>
+
 </html>
