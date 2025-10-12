@@ -32,3 +32,5 @@ To run the project after compilation, follow these steps:
 2. Open your web browser and navigate to `http://localhost:9090` to access the project.
 
 This will serve the compiled `main.wasm` and any other static files in the project directory, allowing you to run and test the application in your browser.
+
+> Note: In your browser's DevTools, enable "Disable cache" to force loading WebAssembly modules (e.g., main.wasm) on every refresh. For Chrome/Edge, open DevTools, go to the Network tab, and check "Disable cache" (applies while DevTools is open).
