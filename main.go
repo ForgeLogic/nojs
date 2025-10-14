@@ -4,20 +4,22 @@
 package main
 
 import (
-	"github.com/vcrobe/nojs/vdom"
+	"github.com/vcrobe/nojs/appcomponents" // Assuming components are in this package
+	"github.com/vcrobe/nojs/runtime"
 )
 
 func main() {
-	// Create and render the test component
+	// The user creates the root component instance.
+	// The generated .gt.go files for the 'appcomponents' package
+	// must be compiled as part of the main application.
+	app := appcomponents.App{}
 
-	vdom.RenderToSelector("#app", render())
+	// Create the runtime renderer, passing it the root component.
+	renderer := runtime.NewRenderer(&app, "#app")
 
-	testComp1 := NewTestComponent("First component", 1)
-	vdom.RenderToSelector("#app", testComp1.Render())
+	// Tell the renderer to perform the initial render.
+	renderer.RenderRoot()
 
-	testComp2 := NewTestComponent("Second component", 8)
-	vdom.RenderToSelector("#app", testComp2.Render())
-
-	// Keep the Go program running
+	// Keep the Go program running.
 	select {}
 }

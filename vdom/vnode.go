@@ -1,3 +1,6 @@
+//go:build js || wasm
+// +build js wasm
+
 package vdom
 
 // VNode represents a virtual DOM node.
