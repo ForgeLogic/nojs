@@ -11,4 +11,5 @@ import (
 // The Render method now accepts the runtime renderer to manage child components.
 type Component interface {
 	Render(r *Renderer) *vdom.VNode
+	SetRenderer(r *Renderer)
 }

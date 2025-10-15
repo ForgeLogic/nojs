@@ -10,12 +10,25 @@ import (
 )
 
 func Clear(selector string) {
+	println("Calling ClearSelector(%s)", selector)
+
 	if selector == "" {
-		console.Error("Selector not defined")
 		return
 	}
 
-	console.Warning("vdom.Clear(...) Not implemented")
+	doc := js.Global().Get("document")
+	if !doc.Truthy() {
+		return
+	}
+
+	mount := doc.Call("querySelector", selector)
+	if !mount.Truthy() {
+		console.Error("Mount element not found for selector:", selector)
+		return
+	}
+
+	// Set innerHTML to an empty string to clear all children.
+	mount.Set("innerHTML", "")
 }
 
 // RenderToSelector mounts the VNode under the first element matching the CSS selector.

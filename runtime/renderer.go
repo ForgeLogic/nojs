@@ -26,6 +26,10 @@ func NewRenderer(root Component, mountID string) *Renderer {
 // RenderRoot starts the rendering process for the entire application.
 func (r *Renderer) RenderRoot() {
 	// On each root render, we build the VDOM tree from the root component.
+	// Ensure the root has a reference to the renderer for StateHasChanged.
+	if r.root != nil {
+		r.root.SetRenderer(r)
+	}
 	vdomTree := r.root.Render(r)
 
 	// Simple strategy: clear the mount point and render fresh.
@@ -42,18 +46,22 @@ func (r *Renderer) RenderChild(key string, childWithProps Component) *vdom.VNode
 		instance = childWithProps
 		r.instances[key] = instance
 	} else {
-		// We have seen this component before. We need to apply the new props
-		// to the *existing* instance. For now, since the compiler creates a new
-		// struct literal each time, we will overwrite the instance.
-		// A more advanced implementation would use reflection to update fields
-		// on the existing `instance` without replacing it. For now, we will
-		// just replace it to keep the logic simple, but this means state is not preserved.
-		// To truly preserve state, we'd need to update the existing instance's fields.
-		// For now, let's just re-assign.
-		r.instances[key] = childWithProps
-		instance = childWithProps
+		// We have seen this component before. Preserve the existing instance to keep state.
+		// In the future, apply new props onto the existing instance instead of replacing it.
 	}
 
 	// Now, render the child (either the new or reused one).
+	// Ensure the instance knows about the renderer so it can call StateHasChanged.
+	instance.SetRenderer(r)
 	return instance.Render(r)
+}
+
+// ReRender clears the DOM and re-renders the entire application from the root.
+func (r *Renderer) ReRender() {
+	println("Calling ReRender()")
+	// // In a real diffing algorithm, you wouldn't clear everything.
+	// // For now, this is our simple and effective strategy.
+	// vdom.Clear(r.mountID)
+	// vdom.RenderToSelector(r.mountID, r.root.Render(r))
+	r.RenderRoot()
 }

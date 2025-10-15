@@ -3,7 +3,13 @@
 
 package appcomponents
 
-type App struct{}
+import (
+	"github.com/vcrobe/nojs/runtime"
+)
+
+type App struct {
+	runtime.ComponentBase
+}
 
 func NewApp() *App {
 	return &App{}

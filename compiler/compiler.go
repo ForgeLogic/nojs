@@ -7,6 +7,7 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -34,6 +35,9 @@ type componentInfo struct {
 	PackageName   string
 	Schema        componentSchema
 }
+
+// Regex to find data binding expressions like {FieldName}
+var dataBindingRegex = regexp.MustCompile(`\{([a-zA-Z0-9_]+)\}`)
 
 // Compile is the main entry point for the AOT compiler.
 func compile(srcDir, outDir string) error {
@@ -254,6 +258,30 @@ func generateAttributesMap(n *html.Node, receiver string, currentComp componentI
 	return fmt.Sprintf("map[string]any{%s}", strings.Join(allProps, ", "))
 }
 
+// generateTextExpression handles data binding in text nodes.
+func generateTextExpression(text string, receiver string, currentComp componentInfo) string {
+	matches := dataBindingRegex.FindAllStringSubmatch(text, -1)
+
+	if len(matches) == 0 {
+		return strconv.Quote(text) // It's just a static string
+	}
+
+	formatString := dataBindingRegex.ReplaceAllString(text, "%v")
+	var args []string
+
+	for _, match := range matches {
+		fieldName := match[1]
+		// Type-safety check: does the field exist on the component struct?
+		if _, ok := currentComp.Schema.Props[strings.ToLower(fieldName)]; !ok {
+			fmt.Fprintf(os.Stderr, "Compilation Error in %s: Field '%s' not found on component '%s' for data binding.\n", currentComp.Path, fieldName, currentComp.PascalName)
+			os.Exit(1)
+		}
+		args = append(args, fmt.Sprintf("%s.%s", receiver, fieldName))
+	}
+
+	return fmt.Sprintf(`fmt.Sprintf("%s", %s)`, formatString, strings.Join(args, ", "))
+}
+
 // generateNodeCode recursively generates Go vdom calls.
 func generateNodeCode(n *html.Node, receiver string, componentMap map[string]componentInfo, currentComp componentInfo) string {
 	if n.Type == html.TextNode {
@@ -292,18 +320,20 @@ func generateNodeCode(n *html.Node, receiver string, componentMap map[string]com
 		switch tagName {
 		case "div":
 			return fmt.Sprintf("vdom.Div(%s, %s)", attrsMapStr, childrenStr)
-		case "p":
+		case "p", "button":
 			textContent := ""
 			if n.FirstChild != nil && n.FirstChild.Type == html.TextNode {
-				textContent = strings.TrimSpace(n.FirstChild.Data)
+				// Handle data binding in the text content
+				textContent = generateTextExpression(n.FirstChild.Data, receiver, currentComp)
+			} else {
+				textContent = `""` // Default to empty string if no text node
 			}
-			return fmt.Sprintf("vdom.Paragraph(\"%s\", %s)", textContent, attrsMapStr)
-		case "button":
-			textContent := ""
-			if n.FirstChild != nil && n.FirstChild.Type == html.TextNode {
-				textContent = strings.TrimSpace(n.FirstChild.Data)
+
+			// The VDOM helpers expect a string, so we pass the generated expression
+			if tagName == "p" {
+				return fmt.Sprintf("vdom.Paragraph(%s, %s)", textContent, attrsMapStr)
 			}
-			return fmt.Sprintf("vdom.Button(\"%s\", %s, %s)", textContent, attrsMapStr, childrenStr)
+			return fmt.Sprintf("vdom.Button(%s, %s, %s)", textContent, attrsMapStr, childrenStr)
 		default:
 			return `vdom.Div(nil)` // Default to an empty div for unknown tags
 		}
