@@ -16,7 +16,8 @@ import (
 
 // componentSchema holds the type information for a component's props.
 type componentSchema struct {
-	Props map[string]propertyDescriptor // Map of Prop name to its Go type (e.g., "Title": "string")
+	Props   map[string]propertyDescriptor // Map of Prop name to its Go type (e.g., "Title": "string")
+	Methods map[string]bool               // Set of available method names for event handlers
 }
 
 type propertyDescriptor struct {
@@ -102,7 +103,10 @@ func discoverAndInspectComponents(rootDir string) ([]componentInfo, error) {
 			schema, err := inspectGoFile(goFilePath, pascalName)
 			if err != nil {
 				fmt.Printf("Warning: could not inspect Go file %s: %v\n", goFilePath, err)
-				schema = componentSchema{Props: make(map[string]propertyDescriptor)}
+				schema = componentSchema{
+					Props:   make(map[string]propertyDescriptor),
+					Methods: make(map[string]bool),
+				}
 			}
 
 			components = append(components, componentInfo{
@@ -124,7 +128,10 @@ func discoverAndInspectComponents(rootDir string) ([]componentInfo, error) {
 
 // inspectGoFile parses a Go file and extracts the prop schema for a given struct.
 func inspectGoFile(path, structName string) (componentSchema, error) {
-	schema := componentSchema{Props: make(map[string]propertyDescriptor)}
+	schema := componentSchema{
+		Props:   make(map[string]propertyDescriptor),
+		Methods: make(map[string]bool),
+	}
 	fset := token.NewFileSet()
 	node, err := parser.ParseFile(fset, path, nil, 0)
 	if err != nil {
@@ -132,34 +139,38 @@ func inspectGoFile(path, structName string) (componentSchema, error) {
 	}
 
 	ast.Inspect(node, func(n ast.Node) bool {
-		typeSpec, ok := n.(*ast.TypeSpec)
-		if !ok || typeSpec.Name.Name != structName {
-			return true // Continue inspection
-		}
-
-		structType, ok := typeSpec.Type.(*ast.StructType)
-		if !ok {
-			return true
-		}
-
-		for _, field := range structType.Fields.List {
-			if len(field.Names) > 0 {
-				fieldName := strings.ToLower(field.Names[0].Name)
-				// Ensure the field is exported
-				if field.Names[0].IsExported() {
-					// This gives us an expression for the type, e.g., "string", "int", "*MyType"
-					if typeIdent, ok := field.Type.(*ast.Ident); ok {
-						schema.Props[fieldName] = propertyDescriptor{
-							Name:          field.Names[0].Name,
-							LowercaseName: fieldName,
-							GoType:        typeIdent.Name,
+		// Inspect for struct fields (Props)
+		if typeSpec, ok := n.(*ast.TypeSpec); ok && typeSpec.Name.Name == structName {
+			if structType, ok := typeSpec.Type.(*ast.StructType); ok {
+				for _, field := range structType.Fields.List {
+					if len(field.Names) > 0 && field.Names[0].IsExported() {
+						fieldName := field.Names[0].Name
+						if typeIdent, ok := field.Type.(*ast.Ident); ok {
+							schema.Props[strings.ToLower(fieldName)] = propertyDescriptor{
+								Name:          fieldName,
+								LowercaseName: strings.ToLower(fieldName),
+								GoType:        typeIdent.Name,
+							}
 						}
 					}
 				}
 			}
 		}
 
-		return false // Stop after finding the struct
+		// Inspect for methods (Event Handlers)
+		if funcDecl, ok := n.(*ast.FuncDecl); ok && funcDecl.Recv != nil && len(funcDecl.Recv.List) > 0 {
+			recv := funcDecl.Recv.List[0].Type
+			if starExpr, ok := recv.(*ast.StarExpr); ok {
+				recv = starExpr.X
+			}
+			if typeIdent, ok := recv.(*ast.Ident); ok && typeIdent.Name == structName {
+				if funcDecl.Name.IsExported() {
+					schema.Methods[funcDecl.Name.Name] = true
+				}
+			}
+		}
+
+		return true
 	})
 
 	return schema, nil
@@ -183,7 +194,7 @@ func compileComponentTemplate(comp componentInfo, componentMap map[string]compon
 		return fmt.Errorf("no element found inside <body> tag to compile")
 	}
 
-	generatedCode := generateNodeCode(rootElement, "c", componentMap) // "c" is the receiver
+	generatedCode := generateNodeCode(rootElement, "c", componentMap, comp)
 
 	template := `//go:build js || wasm
 // +build js wasm
@@ -211,22 +222,40 @@ func (c *%[1]s) Render(r *runtime.Renderer) *vdom.VNode {
 }
 
 // generateAttributesMap is a helper to create the Go map literal for an element's attributes.
-func generateAttributesMap(n *html.Node) string {
-	if len(n.Attr) == 0 {
+func generateAttributesMap(n *html.Node, receiver string, currentComp componentInfo) string {
+	var attrs, events []string
+	for _, a := range n.Attr {
+		if strings.HasPrefix(a.Key, "@") {
+			eventName := strings.TrimPrefix(a.Key, "@")
+			handlerName := a.Val
+			// Compile-time safety check!
+			if _, ok := currentComp.Schema.Methods[handlerName]; !ok {
+				fmt.Fprintf(os.Stderr, "Compilation Error in %s: Method '%s' not found on component '%s'.\n", currentComp.Path, handlerName, currentComp.PascalName)
+				os.Exit(1)
+			}
+			switch eventName {
+			case "onclick":
+				// Generate the Go code to reference the component's method.
+				//events = append(events, fmt.Sprintf(`"onClick": %s.%s`, receiver, handlerName))
+				handler := fmt.Sprintf(`%s.%s`, receiver, handlerName)
+				events = append(events, fmt.Sprintf(`"onClick": %s`, handler))
+			default:
+				fmt.Printf("Warning: Unknown event directive '@%s' in %s.\n", eventName, currentComp.Path)
+			}
+		} else {
+			attrs = append(attrs, fmt.Sprintf(`"%s": "%s"`, a.Key, a.Val))
+		}
+	}
+
+	if len(attrs) == 0 && len(events) == 0 {
 		return "nil"
 	}
-
-	var attrs []string
-	for _, a := range n.Attr {
-		// Note: This currently treats all attribute values as strings.
-		attrs = append(attrs, fmt.Sprintf("\"%s\": \"%s\"", a.Key, a.Val))
-	}
-
-	return fmt.Sprintf("map[string]any{%s}", strings.Join(attrs, ", "))
+	allProps := append(attrs, events...)
+	return fmt.Sprintf("map[string]any{%s}", strings.Join(allProps, ", "))
 }
 
 // generateNodeCode recursively generates Go vdom calls.
-func generateNodeCode(n *html.Node, receiver string, componentMap map[string]componentInfo) string {
+func generateNodeCode(n *html.Node, receiver string, componentMap map[string]componentInfo, currentComp componentInfo) string {
 	if n.Type == html.TextNode {
 		content := strings.TrimSpace(n.Data)
 		if content == "" {
@@ -251,14 +280,14 @@ func generateNodeCode(n *html.Node, receiver string, componentMap map[string]com
 		// 2. Handle Standard HTML Elements
 		var childrenCode []string
 		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			childCode := generateNodeCode(c, receiver, componentMap)
+			childCode := generateNodeCode(c, receiver, componentMap, currentComp)
 			if childCode != "" {
 				childrenCode = append(childrenCode, childCode)
 			}
 		}
 
 		childrenStr := strings.Join(childrenCode, ", ")
-		attrsMapStr := generateAttributesMap(n)
+		attrsMapStr := generateAttributesMap(n, receiver, currentComp)
 
 		switch tagName {
 		case "div":
@@ -269,6 +298,12 @@ func generateNodeCode(n *html.Node, receiver string, componentMap map[string]com
 				textContent = strings.TrimSpace(n.FirstChild.Data)
 			}
 			return fmt.Sprintf("vdom.Paragraph(\"%s\", %s)", textContent, attrsMapStr)
+		case "button":
+			textContent := ""
+			if n.FirstChild != nil && n.FirstChild.Type == html.TextNode {
+				textContent = strings.TrimSpace(n.FirstChild.Data)
+			}
+			return fmt.Sprintf("vdom.Button(\"%s\", %s, %s)", textContent, attrsMapStr, childrenStr)
 		default:
 			return `vdom.Div(nil)` // Default to an empty div for unknown tags
 		}
