@@ -183,9 +183,12 @@ func inspectGoFile(path, structName string) (componentSchema, error) {
 // compileComponentTemplate handles the code generation for a single component.
 func compileComponentTemplate(comp componentInfo, componentMap map[string]componentInfo, outDir string) error {
 	htmlContent, err := os.ReadFile(comp.Path)
-	// ... (rest of the compilation logic as before)
-	// ... (find body, find root element)
-	doc, err := html.Parse(strings.NewReader(string(htmlContent)))
+	if err != nil {
+		return fmt.Errorf("failed to read template file %s: %w", comp.Path, err)
+	}
+	htmlString := string(htmlContent)
+
+	doc, err := html.Parse(strings.NewReader(htmlString))
 	if err != nil {
 		return fmt.Errorf("failed to parse HTML: %w", err)
 	}
@@ -193,12 +196,30 @@ func compileComponentTemplate(comp componentInfo, componentMap map[string]compon
 	if bodyNode == nil {
 		return fmt.Errorf("could not find <body> tag")
 	}
-	rootElement := findFirstElementChild(bodyNode)
-	if rootElement == nil {
+	// Collect all top-level element children inside <body>
+	var topLevelElems []*html.Node
+	for c := bodyNode.FirstChild; c != nil; c = c.NextSibling {
+		if c.Type == html.ElementNode {
+			topLevelElems = append(topLevelElems, c)
+		}
+	}
+	if len(topLevelElems) == 0 {
 		return fmt.Errorf("no element found inside <body> tag to compile")
 	}
 
-	generatedCode := generateNodeCode(rootElement, "c", componentMap, comp)
+	// Generate code for either a single root node or wrap multiple in a <div>
+	var generatedCode string
+	if len(topLevelElems) == 1 {
+		generatedCode = generateNodeCode(topLevelElems[0], "c", componentMap, comp, htmlString)
+	} else {
+		var childrenCodes []string
+		for _, el := range topLevelElems {
+			if code := generateNodeCode(el, "c", componentMap, comp, htmlString); code != "" {
+				childrenCodes = append(childrenCodes, code)
+			}
+		}
+		generatedCode = fmt.Sprintf("vdom.Div(nil, %s)", strings.Join(childrenCodes, ", "))
+	}
 
 	template := `//go:build js || wasm
 // +build js wasm
@@ -207,6 +228,7 @@ func compileComponentTemplate(comp componentInfo, componentMap map[string]compon
 package %[2]s
 
 import (
+	"fmt"
 	"github.com/vcrobe/nojs/vdom"
 	"github.com/vcrobe/nojs/runtime"
 	"strconv" // Added for type conversions
@@ -215,6 +237,7 @@ import (
 // Render generates the VNode tree for the %[1]s component.
 func (c *%[1]s) Render(r *runtime.Renderer) *vdom.VNode {
 	_ = strconv.Itoa // Suppress unused import error if no props are converted
+	_ = fmt.Sprintf  // Suppress unused import error if no bindings are used
 	return %[3]s
 }
 `
@@ -226,7 +249,7 @@ func (c *%[1]s) Render(r *runtime.Renderer) *vdom.VNode {
 }
 
 // generateAttributesMap is a helper to create the Go map literal for an element's attributes.
-func generateAttributesMap(n *html.Node, receiver string, currentComp componentInfo) string {
+func generateAttributesMap(n *html.Node, receiver string, currentComp componentInfo, htmlSource string) string {
 	var attrs, events []string
 	for _, a := range n.Attr {
 		if strings.HasPrefix(a.Key, "@") {
@@ -234,7 +257,12 @@ func generateAttributesMap(n *html.Node, receiver string, currentComp componentI
 			handlerName := a.Val
 			// Compile-time safety check!
 			if _, ok := currentComp.Schema.Methods[handlerName]; !ok {
-				fmt.Fprintf(os.Stderr, "Compilation Error in %s: Method '%s' not found on component '%s'.\n", currentComp.Path, handlerName, currentComp.PascalName)
+				// Find the line number for this event attribute
+				lineNumber := findEventLineNumber(n, eventName, htmlSource)
+				availableMethods := getAvailableMethodNames(currentComp.Schema.Methods)
+				contextLines := getContextLines(htmlSource, lineNumber, 2)
+				fmt.Fprintf(os.Stderr, "Compilation Error in %s:%d: Method '%s' not found on component '%s'. Available methods: [%s]\n%s",
+					currentComp.Path, lineNumber, handlerName, currentComp.PascalName, availableMethods, contextLines)
 				os.Exit(1)
 			}
 			switch eventName {
@@ -283,7 +311,7 @@ func generateTextExpression(text string, receiver string, currentComp componentI
 }
 
 // generateNodeCode recursively generates Go vdom calls.
-func generateNodeCode(n *html.Node, receiver string, componentMap map[string]componentInfo, currentComp componentInfo) string {
+func generateNodeCode(n *html.Node, receiver string, componentMap map[string]componentInfo, currentComp componentInfo, htmlSource string) string {
 	if n.Type == html.TextNode {
 		content := strings.TrimSpace(n.Data)
 		if content == "" {
@@ -299,7 +327,7 @@ func generateNodeCode(n *html.Node, receiver string, componentMap map[string]com
 
 		// 1. Handle Custom Components
 		if compInfo, isComponent := componentMap[tagName]; isComponent {
-			propsStr := generateStructLiteral(n, compInfo)
+			propsStr := generateStructLiteral(n, compInfo, htmlSource, currentComp.Path)
 			key := fmt.Sprintf("%s_%d", compInfo.PascalName, childCount(n.Parent, n)) // Simple key generation
 
 			return fmt.Sprintf(`r.RenderChild("%s", &%s%s)`, key, compInfo.PascalName, propsStr)
@@ -308,14 +336,14 @@ func generateNodeCode(n *html.Node, receiver string, componentMap map[string]com
 		// 2. Handle Standard HTML Elements
 		var childrenCode []string
 		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			childCode := generateNodeCode(c, receiver, componentMap, currentComp)
+			childCode := generateNodeCode(c, receiver, componentMap, currentComp, htmlSource)
 			if childCode != "" {
 				childrenCode = append(childrenCode, childCode)
 			}
 		}
 
 		childrenStr := strings.Join(childrenCode, ", ")
-		attrsMapStr := generateAttributesMap(n, receiver, currentComp)
+		attrsMapStr := generateAttributesMap(n, receiver, currentComp, htmlSource)
 
 		switch tagName {
 		case "div":
@@ -343,10 +371,37 @@ func generateNodeCode(n *html.Node, receiver string, componentMap map[string]com
 }
 
 // generateStructLiteral creates the { Field: value, ... } string.
-func generateStructLiteral(n *html.Node, compInfo componentInfo) string {
+func generateStructLiteral(n *html.Node, compInfo componentInfo, htmlSource string, templatePath string) string {
 	var props []string
+
+	// Extract the original attribute names from the HTML source
+	originalAttrs, lineNumber := extractOriginalAttributesWithLineNumber(n, compInfo.LowercaseName, htmlSource)
+
 	for _, attr := range n.Attr {
-		if propDesc, ok := compInfo.Schema.Props[attr.Key]; ok {
+		// Get the original casing from the source
+		originalKey := attr.Key
+		if origName, found := originalAttrs[attr.Key]; found {
+			originalKey = origName
+		}
+
+		// Check if the ORIGINAL attribute starts with a capital letter
+		if len(originalKey) > 0 && originalKey[0] >= 'A' && originalKey[0] <= 'Z' {
+			// This is a prop binding - it must match an exported field
+			lookupKey := strings.ToLower(originalKey)
+
+			if propDesc, ok := compInfo.Schema.Props[lookupKey]; ok {
+				valueStr := convertPropValue(attr.Val, propDesc.GoType)
+				props = append(props, fmt.Sprintf("%s: %s", propDesc.Name, valueStr))
+			} else {
+				// Attribute starts with capital letter but doesn't match any exported field
+				availableFields := strings.Join(getAvailableFieldNames(compInfo.Schema.Props), ", ")
+				contextLines := getContextLines(htmlSource, lineNumber, 2)
+				fmt.Fprintf(os.Stderr, "Compilation Error in %s:%d: Attribute '%s' does not match any exported field on component '%s'. Available fields: [%s]\n%s",
+					templatePath, lineNumber, originalKey, compInfo.PascalName, availableFields, contextLines)
+				os.Exit(1)
+			}
+		} else if propDesc, ok := compInfo.Schema.Props[attr.Key]; ok {
+			// Lowercase attribute that happens to match a field
 			valueStr := convertPropValue(attr.Val, propDesc.GoType)
 			props = append(props, fmt.Sprintf("%s: %s", propDesc.Name, valueStr))
 		}
@@ -357,6 +412,117 @@ func generateStructLiteral(n *html.Node, compInfo componentInfo) string {
 	}
 
 	return fmt.Sprintf("{%s}", strings.Join(props, ", "))
+}
+
+// extractOriginalAttributesWithLineNumber extracts the original attribute names and line number from the HTML source.
+// This is needed because the HTML parser lowercases all attributes.
+func extractOriginalAttributesWithLineNumber(n *html.Node, componentName, htmlSource string) (map[string]string, int) {
+	originalAttrs := make(map[string]string)
+	lineNumber := 1
+
+	// Find the component tag in the HTML source (case-insensitive tag name)
+	// Pattern: <componentName attr1="..." attr2="..." ...>
+	pattern := fmt.Sprintf(`(?i)<%s\s+([^>]*)>`, regexp.QuoteMeta(componentName))
+	re := regexp.MustCompile(pattern)
+	matchIndex := re.FindStringSubmatchIndex(htmlSource)
+
+	if matchIndex == nil || len(matchIndex) < 4 {
+		return originalAttrs, lineNumber
+	}
+
+	// Calculate line number by counting newlines before the match
+	lineNumber = strings.Count(htmlSource[:matchIndex[0]], "\n") + 1
+
+	// Extract the attribute string
+	attrString := htmlSource[matchIndex[2]:matchIndex[3]]
+
+	// Extract individual attributes with their original casing
+	// Pattern: attrName="value" or attrName='value'
+	attrPattern := regexp.MustCompile(`([a-zA-Z][a-zA-Z0-9]*)\s*=\s*["']([^"']*)["']`)
+	attrMatches := attrPattern.FindAllStringSubmatch(attrString, -1)
+
+	for _, match := range attrMatches {
+		if len(match) >= 2 {
+			originalName := match[1]
+			lowercaseName := strings.ToLower(originalName)
+			originalAttrs[lowercaseName] = originalName
+		}
+	}
+
+	return originalAttrs, lineNumber
+}
+
+// getAvailableFieldNames returns a slice of exported field names for error messages.
+func getAvailableFieldNames(props map[string]propertyDescriptor) []string {
+	var names []string
+	for _, prop := range props {
+		names = append(names, prop.Name)
+	}
+	return names
+}
+
+// getAvailableMethodNames returns a comma-separated string of available method names for error messages.
+func getAvailableMethodNames(methods map[string]bool) string {
+	var names []string
+	for methodName := range methods {
+		names = append(names, methodName)
+	}
+	return strings.Join(names, ", ")
+}
+
+// findEventLineNumber finds the line number where an event attribute is defined.
+func findEventLineNumber(n *html.Node, eventName, htmlSource string) int {
+	// Look for the event attribute pattern: @eventName="..."
+	// We need to find the element's tag and then the specific event attribute
+	tagName := n.Data
+
+	// Create a pattern to find this specific element with the event attribute
+	// This is a simplified approach - it finds the first occurrence
+	pattern := fmt.Sprintf(`(?i)<%s[^>]*@%s\s*=`, regexp.QuoteMeta(tagName), regexp.QuoteMeta(eventName))
+	re := regexp.MustCompile(pattern)
+	matchIndex := re.FindStringIndex(htmlSource)
+
+	if matchIndex == nil {
+		return 1 // Default to line 1 if not found
+	}
+
+	// Count newlines before the match to get the line number
+	lineNumber := strings.Count(htmlSource[:matchIndex[0]], "\n") + 1
+	return lineNumber
+}
+
+// getContextLines returns a formatted string with context lines around the error line.
+// It shows 'contextSize' lines before and after the target line.
+func getContextLines(source string, lineNumber int, contextSize int) string {
+	lines := strings.Split(source, "\n")
+
+	// Calculate the range of lines to show
+	startLine := lineNumber - contextSize - 1 // -1 for 0-based indexing
+	if startLine < 0 {
+		startLine = 0
+	}
+
+	endLine := lineNumber + contextSize // lineNumber is already the index we want to highlight
+	if endLine > len(lines) {
+		endLine = len(lines)
+	}
+
+	var result strings.Builder
+	result.WriteString("\n")
+
+	for i := startLine; i < endLine; i++ {
+		lineNum := i + 1
+		prefix := "  "
+
+		// Highlight the error line with a marker
+		if lineNum == lineNumber {
+			prefix = "> "
+		}
+
+		result.WriteString(fmt.Sprintf("%s%4d | %s\n", prefix, lineNum, lines[i]))
+	}
+
+	return result.String()
 }
 
 // convertPropValue generates the Go code to convert a string to the target type.

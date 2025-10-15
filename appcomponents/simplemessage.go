@@ -17,7 +17,7 @@ func (r *SimpleMessage) Increment() {
 	r.Counter++
 
 	println("Called Increment: Counter is now", r.Counter)
-	println("FirstProp value is %s", r.FirstProp)
+	println("FirstProp value is", r.FirstProp)
 
 	r.StateHasChanged()
 }
