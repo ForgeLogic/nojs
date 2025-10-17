@@ -1,0 +1,33 @@
+<div style="background-color: bisque;">
+    <p>Conditional Rendering Demo</p>
+
+    {@if ShowWelcome}
+        <p>Welcome to the application!</p>
+    {@endif}
+
+    <button @onclick="ToggleWelcome">Toggle Welcome</button>
+
+    {@if IsLoggedIn}
+        <div>
+            <p>You are logged in.</p>
+            {@if IsAdmin}
+                <p>Admin Panel: You have full access.</p>
+            {@else}
+                <p>User Panel: Limited access.</p>
+            {@endif}
+            <button @onclick="ToggleAdmin">Toggle Admin Status</button>
+        </div>
+    {@else}
+        <p>Please log in to continue.</p>
+    {@endif}
+
+    <button @onclick="ToggleLogin">Toggle Login</button>
+
+    {@if HasError}
+        <p>Error: Something went wrong!</p>
+    {@else}
+        <p>Everything is working fine.</p>
+    {@endif}
+
+    <button @onclick="ToggleError">Toggle Error State</button>
+</div>

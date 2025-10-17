@@ -11,6 +11,8 @@ type SimpleMessage struct {
 	runtime.ComponentBase
 	Counter   int
 	FirstProp string
+	IsSaved   bool
+	IsLoading bool
 }
 
 func (r *SimpleMessage) Increment() {
@@ -18,6 +20,8 @@ func (r *SimpleMessage) Increment() {
 
 	println("Called Increment: Counter is now", r.Counter)
 	println("FirstProp value is", r.FirstProp)
+
+	r.IsLoading = true
 
 	r.StateHasChanged()
 }

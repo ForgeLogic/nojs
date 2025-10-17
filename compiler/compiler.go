@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"go/ast"
+	"go/format"
 	"go/parser"
 	"go/token"
 	"os"
@@ -38,6 +39,67 @@ type componentInfo struct {
 
 // Regex to find data binding expressions like {FieldName}
 var dataBindingRegex = regexp.MustCompile(`\{([a-zA-Z0-9_]+)\}`)
+
+// preprocessConditionals preprocesses template source to extract conditional blocks and replace them with placeholder nodes.
+// It validates that every {@if} has a matching {@endif}.
+func preprocessConditionals(src string, templatePath string) (string, error) {
+	reIf := regexp.MustCompile(`\{\@if ([^}]+)\}`)
+	reElseIf := regexp.MustCompile(`\{\@else if ([^}]+)\}`)
+	reElse := regexp.MustCompile(`\{\@else\}`)
+	reEndIf := regexp.MustCompile(`\{\@endif\}`)
+
+	// Count directives to validate structure
+	ifCount := len(reIf.FindAllString(src, -1))
+	endifCount := len(reEndIf.FindAllString(src, -1))
+
+	if ifCount != endifCount {
+		// Find the line numbers to help the developer
+		lines := strings.Split(src, "\n")
+		var ifLines []int
+		var endifLines []int
+
+		for i, line := range lines {
+			if reIf.MatchString(line) {
+				ifLines = append(ifLines, i+1)
+			}
+			if reEndIf.MatchString(line) {
+				endifLines = append(endifLines, i+1)
+			}
+		}
+
+		if ifCount > endifCount {
+			return "", fmt.Errorf("template validation error in %s: found %d {@if} directive(s) but only %d {@endif} directive(s).\n"+
+				"  {@if} found at line(s): %v\n"+
+				"  {@endif} found at line(s): %v\n"+
+				"  Missing %d {@endif} directive(s).",
+				templatePath, ifCount, endifCount, ifLines, endifLines, ifCount-endifCount)
+		} else {
+			return "", fmt.Errorf("template validation error in %s: found %d {@endif} directive(s) but only %d {@if} directive(s).\n"+
+				"  {@if} found at line(s): %v\n"+
+				"  {@endif} found at line(s): %v\n"+
+				"  Extra %d {@endif} directive(s) without matching {@if}.",
+				templatePath, endifCount, ifCount, ifLines, endifLines, endifCount-ifCount)
+		}
+	}
+
+	src = reIf.ReplaceAllStringFunc(src, func(m string) string {
+		cond := reIf.FindStringSubmatch(m)[1]
+		return fmt.Sprintf("<go-conditional><go-if data-cond=\"%s\">", cond)
+	})
+	src = reElseIf.ReplaceAllStringFunc(src, func(m string) string {
+		cond := reElseIf.FindStringSubmatch(m)[1]
+		return fmt.Sprintf("</go-if><go-elseif data-cond=\"%s\">", cond)
+	})
+	// Handle {@else} - it closes the previous branch and opens go-else
+	src = reElse.ReplaceAllString(src, func() string {
+		// Check if the previous element is go-if or go-elseif
+		// We need to close whichever was opened
+		return "</go-if></go-elseif><go-else>"
+	}())
+	// {@endif} closes the last opened branch and the wrapper
+	src = reEndIf.ReplaceAllString(src, "</go-if></go-elseif></go-else></go-conditional>")
+	return src, nil
+}
 
 // Compile is the main entry point for the AOT compiler.
 func compile(srcDir, outDir string) error {
@@ -188,6 +250,12 @@ func compileComponentTemplate(comp componentInfo, componentMap map[string]compon
 	}
 	htmlString := string(htmlContent)
 
+	// Preprocess conditional blocks with validation
+	htmlString, err = preprocessConditionals(htmlString, comp.Path)
+	if err != nil {
+		return err // Error message already includes template path and details
+	}
+
 	doc, err := html.Parse(strings.NewReader(htmlString))
 	if err != nil {
 		return fmt.Errorf("failed to parse HTML: %w", err)
@@ -203,8 +271,7 @@ func compileComponentTemplate(comp componentInfo, componentMap map[string]compon
 	}
 
 	// Generate code for a single root node
-	var generatedCode string
-	generatedCode = generateNodeCode(rootElement, "c", componentMap, comp, htmlString)
+	generatedCode := generateNodeCode(rootElement, "c", componentMap, comp, htmlString)
 
 	template := `//go:build js || wasm
 // +build js wasm
@@ -228,9 +295,16 @@ func (c *%[1]s) Render(r *runtime.Renderer) *vdom.VNode {
 `
 
 	source := fmt.Sprintf(template, comp.PascalName, comp.PackageName, generatedCode)
+
+	// Format the generated source code
+	formattedSource, err := format.Source([]byte(source))
+	if err != nil {
+		return fmt.Errorf("failed to format generated code: %w", err)
+	}
+
 	outFileName := fmt.Sprintf("%s.generated.go", comp.PascalName)
 	outFilePath := filepath.Join(outDir, outFileName)
-	return os.WriteFile(outFilePath, []byte(source), 0644)
+	return os.WriteFile(outFilePath, formattedSource, 0644)
 }
 
 // generateAttributesMap is a helper to create the Go map literal for an element's attributes.
@@ -295,6 +369,115 @@ func generateTextExpression(text string, receiver string, currentComp componentI
 	return fmt.Sprintf(`fmt.Sprintf("%s", %s)`, formatString, strings.Join(args, ", "))
 }
 
+// generateConditionalCode generates Go if/else blocks for conditional rendering.
+func generateConditionalCode(n *html.Node, receiver string, componentMap map[string]componentInfo, currentComp componentInfo, htmlSource string) string {
+	var code strings.Builder
+
+	// Generate IIFE (Immediately Invoked Function Expression)
+	code.WriteString("func() *vdom.VNode {\n")
+
+	// Process children of go-conditional wrapper
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		if c.Type == html.ElementNode && c.Data == "go-if" {
+			// Extract and validate condition
+			cond := ""
+			for _, attr := range c.Attr {
+				if attr.Key == "data-cond" {
+					cond = attr.Val
+					break
+				}
+			}
+
+			propDesc, exists := currentComp.Schema.Props[strings.ToLower(cond)]
+			if !exists {
+				fmt.Fprintf(os.Stderr, "Compilation Error in %s: Condition '%s' not found on component '%s'.\n", currentComp.Path, cond, currentComp.PascalName)
+				os.Exit(1)
+			}
+			if propDesc.GoType != "bool" {
+				fmt.Fprintf(os.Stderr, "Compilation Error in %s: Condition '%s' must be a bool field, found type '%s'.\n", currentComp.Path, cond, propDesc.GoType)
+				os.Exit(1)
+			}
+
+			code.WriteString(fmt.Sprintf("if %s.%s {\n", receiver, propDesc.Name))
+			foundContent := false
+			for cc := c.FirstChild; cc != nil; cc = cc.NextSibling {
+				childCode := generateNodeCode(cc, receiver, componentMap, currentComp, htmlSource)
+				if childCode != "" {
+					code.WriteString("return ")
+					code.WriteString(childCode)
+					code.WriteString("\n")
+					foundContent = true
+					break
+				}
+			}
+			if !foundContent {
+				code.WriteString("return nil\n")
+			}
+			code.WriteString("}")
+		} else if c.Type == html.ElementNode && c.Data == "go-elseif" {
+			// Extract and validate condition
+			elseifCond := ""
+			for _, attr := range c.Attr {
+				if attr.Key == "data-cond" {
+					elseifCond = attr.Val
+					break
+				}
+			}
+
+			propDesc, exists := currentComp.Schema.Props[strings.ToLower(elseifCond)]
+			if !exists {
+				fmt.Fprintf(os.Stderr, "Compilation Error in %s: Condition '%s' not found on component '%s'.\n", currentComp.Path, elseifCond, currentComp.PascalName)
+				os.Exit(1)
+			}
+			if propDesc.GoType != "bool" {
+				fmt.Fprintf(os.Stderr, "Compilation Error in %s: Condition '%s' must be a bool field, found type '%s'.\n", currentComp.Path, elseifCond, propDesc.GoType)
+				os.Exit(1)
+			}
+
+			code.WriteString(fmt.Sprintf(" else if %s.%s {\n", receiver, propDesc.Name))
+			foundContent := false
+			for cc := c.FirstChild; cc != nil; cc = cc.NextSibling {
+				childCode := generateNodeCode(cc, receiver, componentMap, currentComp, htmlSource)
+				if childCode != "" {
+					code.WriteString("return ")
+					code.WriteString(childCode)
+					code.WriteString("\n")
+					foundContent = true
+					break
+				}
+			}
+			if !foundContent {
+				code.WriteString("return nil\n")
+			}
+			code.WriteString("}")
+		} else if c.Type == html.ElementNode && c.Data == "go-else" {
+			code.WriteString(" else {\n")
+			foundContent := false
+			for cc := c.FirstChild; cc != nil; cc = cc.NextSibling {
+				childCode := generateNodeCode(cc, receiver, componentMap, currentComp, htmlSource)
+				if childCode != "" {
+					code.WriteString("return ")
+					code.WriteString(childCode)
+					code.WriteString("\n")
+					foundContent = true
+					break
+				}
+			}
+			if !foundContent {
+				code.WriteString("return nil\n")
+			}
+			code.WriteString("}\n")
+			// Don't add the fallback return nil after else block
+			code.WriteString("}()")
+			return code.String()
+		}
+	}
+
+	// Only add fallback return nil if there's no else branch
+	code.WriteString("\nreturn nil\n}()")
+	return code.String()
+}
+
 // generateNodeCode recursively generates Go vdom calls.
 func generateNodeCode(n *html.Node, receiver string, componentMap map[string]componentInfo, currentComp componentInfo, htmlSource string) string {
 	if n.Type == html.TextNode {
@@ -309,6 +492,15 @@ func generateNodeCode(n *html.Node, receiver string, componentMap map[string]com
 
 	if n.Type == html.ElementNode {
 		tagName := n.Data
+
+		// 0. Handle conditional placeholder nodes
+		if tagName == "go-conditional" {
+			return generateConditionalCode(n, receiver, componentMap, currentComp, htmlSource)
+		}
+		if tagName == "go-if" || tagName == "go-elseif" || tagName == "go-else" {
+			// These are handled within go-conditional processing
+			return ""
+		}
 
 		// 1. Handle Custom Components
 		if compInfo, isComponent := componentMap[tagName]; isComponent {
