@@ -4,5 +4,10 @@
 # Ignore all .wasm files
 *.wasm
 
+# Ignore the compiler binary
+compiler/compiler
+compiler/compiler.exe
+
 # Ignore the file generated go files in any directory
 /**/*.generated.go
+

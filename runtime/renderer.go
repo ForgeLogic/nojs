@@ -58,7 +58,6 @@ func (r *Renderer) RenderChild(key string, childWithProps Component) *vdom.VNode
 
 // ReRender clears the DOM and re-renders the entire application from the root.
 func (r *Renderer) ReRender() {
-	println("Calling ReRender()")
 	// // In a real diffing algorithm, you wouldn't clear everything.
 	// // For now, this is our simple and effective strategy.
 	// vdom.Clear(r.mountID)

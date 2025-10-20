@@ -37,8 +37,19 @@ type componentInfo struct {
 	Schema        componentSchema
 }
 
-// Regex to find data binding expressions like {FieldName}
-var dataBindingRegex = regexp.MustCompile(`\{([a-zA-Z0-9_]+)\}`)
+// compileOptions holds compiler-wide options passed from CLI flags.
+type compileOptions struct {
+	DevWarnings bool // Enable development warnings in generated code
+}
+
+// loopContext holds information about variables available in a loop scope.
+type loopContext struct {
+	IndexVar string // e.g., "i" or "_"
+	ValueVar string // e.g., "user"
+}
+
+// Regex to find data binding expressions like {FieldName} or {user.Name}
+var dataBindingRegex = regexp.MustCompile(`\{([a-zA-Z0-9_.]+)\}`)
 
 // Regex to find ternary expressions like { condition ? 'value1' : 'value2' }
 var ternaryExprRegex = regexp.MustCompile(`\{\s*(!?)([a-zA-Z0-9_]+)\s*\?\s*'([^']*)'\s*:\s*'([^']*)'\s*\}`)
@@ -70,6 +81,89 @@ var standardBooleanAttrs = map[string]bool{
 	"default":        true,
 	"ismap":          true,
 	"formnovalidate": true,
+}
+
+// preprocessFor preprocesses template source to extract for-loop blocks and replace them with placeholder nodes.
+// It validates that every {@for} has a matching {@endfor} and that trackBy is specified.
+// Syntax: {@for index, value := range SliceName trackBy uniqueKeyExpression}{@endfor}
+// The index can be _ to ignore it: {@for _, value := range SliceName trackBy uniqueKeyExpression}
+func preprocessFor(src string, templatePath string) (string, error) {
+	// Regex to match ONLY: {@for i, user := range Users trackBy user.ID} or {@for _, user := range Users trackBy user.ID}
+	reFor := regexp.MustCompile(`\{\@for\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*,\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*:=\s*range\s+([a-zA-Z_][a-zA-Z0-9_]*)\s+trackBy\s+([a-zA-Z0-9_.]+)\}`)
+
+	// Regex to detect INVALID syntax: {@for user := range Users trackBy user.ID} (missing index/underscore)
+	reForInvalid := regexp.MustCompile(`\{\@for\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*:=\s*range\s+([a-zA-Z_][a-zA-Z0-9_]*)\s+trackBy\s+([a-zA-Z0-9_.]+)\}`)
+
+	reEndFor := regexp.MustCompile(`\{\@endfor\}`)
+
+	// Check for invalid syntax (missing index/underscore)
+	if invalidMatches := reForInvalid.FindAllString(src, -1); len(invalidMatches) > 0 {
+		lines := strings.Split(src, "\n")
+		var invalidLines []int
+
+		for i, line := range lines {
+			if reForInvalid.MatchString(line) && !reFor.MatchString(line) {
+				invalidLines = append(invalidLines, i+1)
+			}
+		}
+
+		if len(invalidLines) > 0 {
+			return "", fmt.Errorf("template syntax error in %s: Invalid {@for} syntax at line(s): %v\n"+
+				"  The {@for} directive requires both index and value variables.\n"+
+				"  Correct syntax: {@for index, value := range Slice trackBy value.Field}\n"+
+				"  To ignore the index, use underscore: {@for _, value := range Slice trackBy value.Field}\n"+
+				"  Example: {@for _, user := range Users trackBy user.ID}",
+				templatePath, invalidLines)
+		}
+	}
+
+	// Count directives to validate structure
+	forCount := len(reFor.FindAllString(src, -1))
+	endForCount := len(reEndFor.FindAllString(src, -1))
+
+	if forCount != endForCount {
+		// Find the line numbers to help the developer
+		lines := strings.Split(src, "\n")
+		var forLines []int
+		var endForLines []int
+
+		for i, line := range lines {
+			if reFor.MatchString(line) {
+				forLines = append(forLines, i+1)
+			}
+			if reEndFor.MatchString(line) {
+				endForLines = append(endForLines, i+1)
+			}
+		}
+
+		if forCount > endForCount {
+			return "", fmt.Errorf("template validation error in %s: found %d {@for} directive(s) but only %d {@endfor} directive(s).\n"+
+				"  {@for} found at line(s): %v\n"+
+				"  {@endfor} found at line(s): %v\n"+
+				"  Missing %d {@endfor} directive(s).",
+				templatePath, forCount, endForCount, forLines, endForLines, forCount-endForCount)
+		} else {
+			return "", fmt.Errorf("template validation error in %s: found %d {@endfor} directive(s) but only %d {@for} directive(s).\n"+
+				"  {@for} found at line(s): %v\n"+
+				"  {@endfor} found at line(s): %v\n"+
+				"  Extra %d {@endfor} directive(s) without matching {@for}.",
+				templatePath, endForCount, forCount, forLines, endForLines, endForCount-forCount)
+		}
+	}
+
+	// Transform {@for i, user := range Users trackBy user.ID} to placeholder elements
+	src = reFor.ReplaceAllStringFunc(src, func(m string) string {
+		matches := reFor.FindStringSubmatch(m)
+		indexVar := matches[1]
+		valueVar := matches[2]
+		rangeExpr := matches[3]
+		trackByExpr := matches[4]
+		return fmt.Sprintf(`<go-for data-index="%s" data-value="%s" data-range="%s" data-trackby="%s">`,
+			indexVar, valueVar, rangeExpr, trackByExpr)
+	})
+
+	src = reEndFor.ReplaceAllString(src, "</go-for>")
+	return src, nil
 }
 
 // preprocessConditionals preprocesses template source to extract conditional blocks and replace them with placeholder nodes.
@@ -185,7 +279,9 @@ func generateTernaryExpression(negated bool, condition, trueVal, falseVal, recei
 }
 
 // Compile is the main entry point for the AOT compiler.
-func compile(srcDir, outDir string) error {
+func compile(srcDir, outDir string, devWarnings bool) error {
+	opts := compileOptions{DevWarnings: devWarnings}
+
 	// Step 1: Discover component templates and inspect their Go structs for props.
 	components, err := discoverAndInspectComponents(srcDir)
 	if err != nil {
@@ -200,7 +296,7 @@ func compile(srcDir, outDir string) error {
 
 	// Step 2: Loop through each discovered component and compile its template.
 	for _, comp := range components {
-		if err := compileComponentTemplate(comp, componentMap, outDir); err != nil {
+		if err := compileComponentTemplate(comp, componentMap, outDir, opts); err != nil {
 			return fmt.Errorf("failed to compile template for %s: %w", comp.PascalName, err)
 		}
 	}
@@ -275,6 +371,71 @@ func discoverAndInspectComponents(rootDir string) ([]componentInfo, error) {
 	return components, nil
 }
 
+// extractTypeName extracts the type name from an AST expression.
+// Handles simple types (int, string, bool), slice types ([]User), and pointer types (*User).
+func extractTypeName(expr ast.Expr) string {
+	switch t := expr.(type) {
+	case *ast.Ident:
+		// Simple type like "string", "int", "bool"
+		return t.Name
+	case *ast.ArrayType:
+		// Slice or array type like "[]User"
+		elemType := extractTypeName(t.Elt)
+		return "[]" + elemType
+	case *ast.StarExpr:
+		// Pointer type like "*User"
+		elemType := extractTypeName(t.X)
+		return "*" + elemType
+	case *ast.SelectorExpr:
+		// Qualified type like "time.Time"
+		if ident, ok := t.X.(*ast.Ident); ok {
+			return ident.Name + "." + t.Sel.Name
+		}
+	}
+	return "unknown"
+}
+
+// inspectStructInFile is a helper that inspects a specific struct type in a Go file.
+// It returns a schema with the struct's exported fields.
+func inspectStructInFile(path, structName string) (componentSchema, error) {
+	schema := componentSchema{
+		Props:   make(map[string]propertyDescriptor),
+		Methods: make(map[string]bool),
+	}
+	fset := token.NewFileSet()
+	node, err := parser.ParseFile(fset, path, nil, 0)
+	if err != nil {
+		return schema, err
+	}
+
+	found := false
+	ast.Inspect(node, func(n ast.Node) bool {
+		if typeSpec, ok := n.(*ast.TypeSpec); ok && typeSpec.Name.Name == structName {
+			if structType, ok := typeSpec.Type.(*ast.StructType); ok {
+				found = true
+				for _, field := range structType.Fields.List {
+					if len(field.Names) > 0 && field.Names[0].IsExported() {
+						fieldName := field.Names[0].Name
+						goType := extractTypeName(field.Type)
+						schema.Props[strings.ToLower(fieldName)] = propertyDescriptor{
+							Name:          fieldName,
+							LowercaseName: strings.ToLower(fieldName),
+							GoType:        goType,
+						}
+					}
+				}
+			}
+		}
+		return true
+	})
+
+	if !found {
+		return schema, fmt.Errorf("struct '%s' not found in file", structName)
+	}
+
+	return schema, nil
+}
+
 // inspectGoFile parses a Go file and extracts the prop schema for a given struct.
 func inspectGoFile(path, structName string) (componentSchema, error) {
 	schema := componentSchema{
@@ -294,12 +455,11 @@ func inspectGoFile(path, structName string) (componentSchema, error) {
 				for _, field := range structType.Fields.List {
 					if len(field.Names) > 0 && field.Names[0].IsExported() {
 						fieldName := field.Names[0].Name
-						if typeIdent, ok := field.Type.(*ast.Ident); ok {
-							schema.Props[strings.ToLower(fieldName)] = propertyDescriptor{
-								Name:          fieldName,
-								LowercaseName: strings.ToLower(fieldName),
-								GoType:        typeIdent.Name,
-							}
+						goType := extractTypeName(field.Type)
+						schema.Props[strings.ToLower(fieldName)] = propertyDescriptor{
+							Name:          fieldName,
+							LowercaseName: strings.ToLower(fieldName),
+							GoType:        goType,
 						}
 					}
 				}
@@ -326,7 +486,7 @@ func inspectGoFile(path, structName string) (componentSchema, error) {
 }
 
 // compileComponentTemplate handles the code generation for a single component.
-func compileComponentTemplate(comp componentInfo, componentMap map[string]componentInfo, outDir string) error {
+func compileComponentTemplate(comp componentInfo, componentMap map[string]componentInfo, outDir string, opts compileOptions) error {
 	htmlContent, err := os.ReadFile(comp.Path)
 	if err != nil {
 		return fmt.Errorf("failed to read template file %s: %w", comp.Path, err)
@@ -335,6 +495,12 @@ func compileComponentTemplate(comp componentInfo, componentMap map[string]compon
 
 	// Preprocess conditional blocks with validation
 	htmlString, err = preprocessConditionals(htmlString, comp.Path)
+	if err != nil {
+		return err // Error message already includes template path and details
+	}
+
+	// Preprocess for-loop blocks with validation
+	htmlString, err = preprocessFor(htmlString, comp.Path)
 	if err != nil {
 		return err // Error message already includes template path and details
 	}
@@ -354,7 +520,7 @@ func compileComponentTemplate(comp componentInfo, componentMap map[string]compon
 	}
 
 	// Generate code for a single root node
-	generatedCode := generateNodeCode(rootElement, "c", componentMap, comp, htmlString)
+	generatedCode := generateNodeCode(rootElement, "c", componentMap, comp, htmlString, opts, nil)
 
 	template := `//go:build js || wasm
 // +build js wasm
@@ -366,6 +532,7 @@ import (
 	"fmt"
 	"github.com/vcrobe/nojs/vdom"
 	"github.com/vcrobe/nojs/runtime"
+	"github.com/vcrobe/nojs/console"
 	"strconv" // Added for type conversions
 )
 
@@ -373,6 +540,7 @@ import (
 func (c *%[1]s) Render(r *runtime.Renderer) *vdom.VNode {
 	_ = strconv.Itoa // Suppress unused import error if no props are converted
 	_ = fmt.Sprintf  // Suppress unused import error if no bindings are used
+	_ = console.Log  // Suppress unused import error if no loops use dev warnings
 	return %[3]s
 }
 `
@@ -504,7 +672,8 @@ func generateAttributesMap(n *html.Node, receiver string, currentComp componentI
 }
 
 // generateTextExpression handles data binding in text nodes.
-func generateTextExpression(text string, receiver string, currentComp componentInfo, htmlSource string, lineNumber int) string {
+// loopCtx can be nil if not inside a loop.
+func generateTextExpression(text string, receiver string, currentComp componentInfo, htmlSource string, lineNumber int, loopCtx *loopContext) string {
 	// Check for ternary expressions first
 	ternaryMatches := ternaryExprRegex.FindAllStringSubmatch(text, -1)
 
@@ -560,9 +729,48 @@ func generateTextExpression(text string, receiver string, currentComp componentI
 
 	for _, match := range matches {
 		fieldName := match[1]
+
+		// Check if this is a loop variable first
+		if loopCtx != nil {
+			if fieldName == loopCtx.IndexVar {
+				// Reference loop index variable
+				args = append(args, fieldName)
+				continue
+			}
+			if fieldName == loopCtx.ValueVar {
+				// Reference loop value variable
+				args = append(args, fieldName)
+				continue
+			}
+			// Check if it's a field access on the loop value variable (e.g., user.Name)
+			if strings.Contains(fieldName, ".") {
+				parts := strings.SplitN(fieldName, ".", 2)
+				varName := parts[0]
+				if varName == loopCtx.ValueVar {
+					// This is a field access on the loop value variable
+					// Just use it as-is (e.g., user.Name)
+					args = append(args, fieldName)
+					continue
+				}
+			}
+		}
+
 		// Type-safety check: does the field exist on the component struct?
 		if _, ok := currentComp.Schema.Props[strings.ToLower(fieldName)]; !ok {
-			fmt.Fprintf(os.Stderr, "Compilation Error in %s: Field '%s' not found on component '%s' for data binding.\n", currentComp.Path, fieldName, currentComp.PascalName)
+			// If we're in a loop, provide more context in the error
+			if loopCtx != nil {
+				fmt.Fprintf(os.Stderr, "Compilation Error in %s: Field '%s' not found.\n"+
+					"  - Not a loop variable (loop has: %s, %s)\n"+
+					"  - Not a component field (available: %s)\n"+
+					"  - For loop item fields, use: %s.FieldName\n",
+					currentComp.Path, fieldName,
+					loopCtx.IndexVar, loopCtx.ValueVar,
+					strings.Join(getAvailableFieldNames(currentComp.Schema.Props), ", "),
+					loopCtx.ValueVar)
+			} else {
+				fmt.Fprintf(os.Stderr, "Compilation Error in %s: Field '%s' not found on component '%s' for data binding.\n",
+					currentComp.Path, fieldName, currentComp.PascalName)
+			}
 			os.Exit(1)
 		}
 		args = append(args, fmt.Sprintf("%s.%s", receiver, fieldName))
@@ -571,8 +779,147 @@ func generateTextExpression(text string, receiver string, currentComp componentI
 	return fmt.Sprintf(`fmt.Sprintf("%s", %s)`, formatString, strings.Join(args, ", "))
 }
 
+// generateForLoopCode generates Go for...range loop code for list rendering.
+func generateForLoopCode(n *html.Node, receiver string, componentMap map[string]componentInfo, currentComp componentInfo, htmlSource string, opts compileOptions) string {
+	// Extract loop variables from data attributes
+	indexVar := ""
+	valueVar := ""
+	rangeExpr := ""
+	trackByExpr := ""
+
+	for _, attr := range n.Attr {
+		switch attr.Key {
+		case "data-index":
+			indexVar = attr.Val
+		case "data-value":
+			valueVar = attr.Val
+		case "data-range":
+			rangeExpr = attr.Val
+		case "data-trackby":
+			trackByExpr = attr.Val
+		}
+	}
+
+	// Validate that we have the required attributes
+	if valueVar == "" || rangeExpr == "" || trackByExpr == "" {
+		fmt.Fprintf(os.Stderr, "Compilation Error in %s: Invalid {@for} directive - missing required attributes.\n", currentComp.Path)
+		os.Exit(1)
+	}
+
+	// Validate that the range expression exists on the component
+	propDesc, exists := currentComp.Schema.Props[strings.ToLower(rangeExpr)]
+	if !exists {
+		availableFields := strings.Join(getAvailableFieldNames(currentComp.Schema.Props), ", ")
+		fmt.Fprintf(os.Stderr, "Compilation Error in %s: Field '%s' not found on component '%s'. Available fields: [%s]\n",
+			currentComp.Path, rangeExpr, currentComp.PascalName, availableFields)
+		os.Exit(1)
+	}
+
+	// Validate that the field is a slice type
+	if !strings.HasPrefix(propDesc.GoType, "[]") {
+		fmt.Fprintf(os.Stderr, "Compilation Error in %s: Field '%s' must be a slice or array type for {@for} directive, found type '%s'.\n",
+			currentComp.Path, rangeExpr, propDesc.GoType)
+		os.Exit(1)
+	}
+
+	// Validate trackBy expression
+	// Parse trackBy to extract variable and field: "user.ID" -> variable="user", field="ID"
+	trackByParts := strings.Split(trackByExpr, ".")
+	if len(trackByParts) != 2 {
+		fmt.Fprintf(os.Stderr, "Compilation Error in %s: trackBy expression '%s' must be in format 'variable.Field' (e.g., 'user.ID').\n",
+			currentComp.Path, trackByExpr)
+		os.Exit(1)
+	}
+
+	trackByVar := trackByParts[0]
+	trackByField := trackByParts[1]
+
+	// Verify the variable matches the loop value variable
+	if trackByVar != valueVar {
+		fmt.Fprintf(os.Stderr, "Compilation Error in %s: trackBy variable '%s' must match the loop value variable '%s'.\n"+
+			"  Expected: trackBy %s.FieldName\n",
+			currentComp.Path, trackByVar, valueVar, valueVar)
+		os.Exit(1)
+	}
+
+	// Extract element type from slice type: "[]User" -> "User"
+	elementType := strings.TrimPrefix(propDesc.GoType, "[]")
+
+	// Validate that the trackBy field exists on the element type
+	// We need to inspect the element type's struct definition
+	goFilePath := filepath.Join(filepath.Dir(currentComp.Path), strings.ToLower(currentComp.PascalName)+".go")
+	elementSchema, err := inspectStructInFile(goFilePath, elementType)
+	if err != nil {
+		// If we can't find the struct in the component file, it might be defined elsewhere
+		// For now, we'll skip validation with a warning
+		fmt.Fprintf(os.Stderr, "Warning in %s: Could not validate trackBy field '%s' on type '%s': %v\n",
+			currentComp.Path, trackByField, elementType, err)
+	} else {
+		// Check if the trackBy field exists on the element type (case-insensitive lookup)
+		propDesc, exists := elementSchema.Props[strings.ToLower(trackByField)]
+		if !exists {
+			availableFields := strings.Join(getAvailableFieldNames(elementSchema.Props), ", ")
+			fmt.Fprintf(os.Stderr, "Compilation Error in %s: trackBy identifier '%s' not found on type '%s'.\nAvailable fields: [%s]\n",
+				currentComp.Path, trackByField, elementType, availableFields)
+			os.Exit(1)
+		}
+
+		// Verify exact case match - the field name in the template must match the actual struct field
+		if propDesc.Name != trackByField {
+			availableFields := strings.Join(getAvailableFieldNames(elementSchema.Props), ", ")
+			fmt.Fprintf(os.Stderr, "Compilation Error in %s: trackBy identifier '%s' not found on type '%s'.\nAvailable fields: [%s]\n",
+				currentComp.Path, trackByField, elementType, availableFields)
+			os.Exit(1)
+		}
+	}
+
+	// Generate the loop body - collect child VNodes
+	var code strings.Builder
+
+	// Generate IIFE that returns a slice of VNodes
+	code.WriteString("func() []*vdom.VNode {\n")
+	code.WriteString(fmt.Sprintf("\tvar %s_nodes []*vdom.VNode\n", valueVar))
+
+	// Add development warning if enabled
+	if opts.DevWarnings {
+		code.WriteString(fmt.Sprintf("\t// Development warning for empty slice\n"))
+		code.WriteString(fmt.Sprintf("\tif len(%s.%s) == 0 {\n", receiver, propDesc.Name))
+		code.WriteString(fmt.Sprintf("\t\tconsole.Warning(\"[@for] Rendering empty list for '%s' in %s. Consider using {@if} to handle empty state.\")\n",
+			propDesc.Name, currentComp.PascalName))
+		code.WriteString("\t}\n\n")
+	}
+
+	// Generate the for loop
+	code.WriteString(fmt.Sprintf("\tfor %s, %s := range %s.%s {\n", indexVar, valueVar, receiver, propDesc.Name))
+
+	// Create loop context for child nodes
+	loopCtx := &loopContext{
+		IndexVar: indexVar,
+		ValueVar: valueVar,
+	}
+
+	// Generate code for each child node in the loop body
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		if c.Type == html.ElementNode || (c.Type == html.TextNode && strings.TrimSpace(c.Data) != "") {
+			childCode := generateNodeCode(c, receiver, componentMap, currentComp, htmlSource, opts, loopCtx)
+			if childCode != "" {
+				code.WriteString(fmt.Sprintf("\t\t%s_child := %s\n", valueVar, childCode))
+				code.WriteString(fmt.Sprintf("\t\tif %s_child != nil {\n", valueVar))
+				code.WriteString(fmt.Sprintf("\t\t\t%s_nodes = append(%s_nodes, %s_child)\n", valueVar, valueVar, valueVar))
+				code.WriteString("\t\t}\n")
+			}
+		}
+	}
+
+	code.WriteString("\t}\n")
+	code.WriteString(fmt.Sprintf("\treturn %s_nodes\n", valueVar))
+	code.WriteString("}()")
+
+	return code.String()
+}
+
 // generateConditionalCode generates Go if/else blocks for conditional rendering.
-func generateConditionalCode(n *html.Node, receiver string, componentMap map[string]componentInfo, currentComp componentInfo, htmlSource string) string {
+func generateConditionalCode(n *html.Node, receiver string, componentMap map[string]componentInfo, currentComp componentInfo, htmlSource string, opts compileOptions, loopCtx *loopContext) string {
 	var code strings.Builder
 
 	// Generate IIFE (Immediately Invoked Function Expression)
@@ -603,7 +950,7 @@ func generateConditionalCode(n *html.Node, receiver string, componentMap map[str
 			code.WriteString(fmt.Sprintf("if %s.%s {\n", receiver, propDesc.Name))
 			foundContent := false
 			for cc := c.FirstChild; cc != nil; cc = cc.NextSibling {
-				childCode := generateNodeCode(cc, receiver, componentMap, currentComp, htmlSource)
+				childCode := generateNodeCode(cc, receiver, componentMap, currentComp, htmlSource, opts, loopCtx)
 				if childCode != "" {
 					code.WriteString("return ")
 					code.WriteString(childCode)
@@ -639,7 +986,7 @@ func generateConditionalCode(n *html.Node, receiver string, componentMap map[str
 			code.WriteString(fmt.Sprintf(" else if %s.%s {\n", receiver, propDesc.Name))
 			foundContent := false
 			for cc := c.FirstChild; cc != nil; cc = cc.NextSibling {
-				childCode := generateNodeCode(cc, receiver, componentMap, currentComp, htmlSource)
+				childCode := generateNodeCode(cc, receiver, componentMap, currentComp, htmlSource, opts, loopCtx)
 				if childCode != "" {
 					code.WriteString("return ")
 					code.WriteString(childCode)
@@ -656,7 +1003,7 @@ func generateConditionalCode(n *html.Node, receiver string, componentMap map[str
 			code.WriteString(" else {\n")
 			foundContent := false
 			for cc := c.FirstChild; cc != nil; cc = cc.NextSibling {
-				childCode := generateNodeCode(cc, receiver, componentMap, currentComp, htmlSource)
+				childCode := generateNodeCode(cc, receiver, componentMap, currentComp, htmlSource, opts, loopCtx)
 				if childCode != "" {
 					code.WriteString("return ")
 					code.WriteString(childCode)
@@ -681,7 +1028,8 @@ func generateConditionalCode(n *html.Node, receiver string, componentMap map[str
 }
 
 // generateNodeCode recursively generates Go vdom calls.
-func generateNodeCode(n *html.Node, receiver string, componentMap map[string]componentInfo, currentComp componentInfo, htmlSource string) string {
+// loopCtx can be nil if not inside a loop.
+func generateNodeCode(n *html.Node, receiver string, componentMap map[string]componentInfo, currentComp componentInfo, htmlSource string, opts compileOptions, loopCtx *loopContext) string {
 	if n.Type == html.TextNode {
 		content := strings.TrimSpace(n.Data)
 		if content == "" {
@@ -697,11 +1045,16 @@ func generateNodeCode(n *html.Node, receiver string, componentMap map[string]com
 
 		// 0. Handle conditional placeholder nodes
 		if tagName == "go-conditional" {
-			return generateConditionalCode(n, receiver, componentMap, currentComp, htmlSource)
+			return generateConditionalCode(n, receiver, componentMap, currentComp, htmlSource, opts, loopCtx)
 		}
 		if tagName == "go-if" || tagName == "go-elseif" || tagName == "go-else" {
 			// These are handled within go-conditional processing
 			return ""
+		}
+
+		// 0.5. Handle for-loop placeholder nodes
+		if tagName == "go-for" {
+			return generateForLoopCode(n, receiver, componentMap, currentComp, htmlSource, opts)
 		}
 
 		// 1. Handle Custom Components
@@ -714,35 +1067,62 @@ func generateNodeCode(n *html.Node, receiver string, componentMap map[string]com
 
 		// 2. Handle Standard HTML Elements
 		var childrenCode []string
+		hasForLoop := false
 		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			childCode := generateNodeCode(c, receiver, componentMap, currentComp, htmlSource)
+			// Check if this child is a go-for node
+			if c.Type == html.ElementNode && c.Data == "go-for" {
+				hasForLoop = true
+			}
+			childCode := generateNodeCode(c, receiver, componentMap, currentComp, htmlSource, opts, loopCtx)
 			if childCode != "" {
 				childrenCode = append(childrenCode, childCode)
 			}
 		}
 
-		childrenStr := strings.Join(childrenCode, ", ")
+		var childrenStr string
+		if hasForLoop {
+			// When we have a for loop, we need to build children differently
+			// Generate code that collects all children into a slice
+			childrenStr = "func() []*vdom.VNode {\nvar allChildren []*vdom.VNode\n"
+			for _, code := range childrenCode {
+				// Check if this looks like a for loop return (starts with "func")
+				if strings.HasPrefix(strings.TrimSpace(code), "func()") {
+					childrenStr += fmt.Sprintf("allChildren = append(allChildren, %s...)\n", code)
+				} else {
+					childrenStr += fmt.Sprintf("allChildren = append(allChildren, %s)\n", code)
+				}
+			}
+			childrenStr += "return allChildren\n}()..."
+		} else {
+			childrenStr = strings.Join(childrenCode, ", ")
+		}
+
 		attrsMapStr := generateAttributesMap(n, receiver, currentComp, htmlSource)
 
 		switch tagName {
-		case "div":
+		case "div", "ul", "ol":
 			return fmt.Sprintf("vdom.Div(%s, %s)", attrsMapStr, childrenStr)
-		case "p", "button":
+		case "p", "button", "li", "h1", "h2", "h3", "h4", "h5", "h6":
 			textContent := ""
 			if n.FirstChild != nil && n.FirstChild.Type == html.TextNode {
 				// Handle data binding and inline conditionals in the text content
 				// Estimate line number by searching for the text in the HTML source
 				lineNum := estimateLineNumber(htmlSource, n.FirstChild.Data)
-				textContent = generateTextExpression(n.FirstChild.Data, receiver, currentComp, htmlSource, lineNum)
+				textContent = generateTextExpression(n.FirstChild.Data, receiver, currentComp, htmlSource, lineNum, loopCtx)
 			} else {
 				textContent = `""` // Default to empty string if no text node
 			}
 
 			// The VDOM helpers expect a string, so we pass the generated expression
-			if tagName == "p" {
+			switch tagName {
+			case "p":
 				return fmt.Sprintf("vdom.Paragraph(%s, %s)", textContent, attrsMapStr)
+			case "button":
+				return fmt.Sprintf("vdom.Button(%s, %s, %s)", textContent, attrsMapStr, childrenStr)
+			default:
+				// For li, h1-h6, use NewVNode directly with text content
+				return fmt.Sprintf("vdom.NewVNode(%s, %s, nil, %s)", strconv.Quote(tagName), attrsMapStr, textContent)
 			}
-			return fmt.Sprintf("vdom.Button(%s, %s, %s)", textContent, attrsMapStr, childrenStr)
 		default:
 			return `vdom.Div(nil)` // Default to an empty div for unknown tags
 		}

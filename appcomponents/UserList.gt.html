@@ -1,0 +1,14 @@
+<div>
+    <h2>{Title}</h2>
+    
+    <div>
+        <button @onclick="AddUser">Add User</button>
+        <button @onclick="ClearUsers">Clear All</button>
+    </div>
+    
+    <ul>
+        {@for i, userx := range Users trackBy userx.ID}
+            <li>{i}: {userx.Name}</li>
+        {@endfor}
+    </ul>
+</div>

@@ -10,6 +10,7 @@ type VNode struct {
 	Children   []*VNode       // The child nodes
 	Content    string         // The content of the node
 	OnClick    func()         // Optional click event handler
+	Key        any            // Optional key for list reconciliation (used in {@for} loops)
 }
 
 // NewVNode creates a new VNode.

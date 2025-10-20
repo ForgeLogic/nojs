@@ -10,8 +10,6 @@ import (
 )
 
 func Clear(selector string) {
-	println("Calling ClearSelector(%s)", selector)
-
 	if selector == "" {
 		return
 	}
@@ -169,6 +167,77 @@ func createElement(n *VNode) js.Value {
 			})
 			el.Call("addEventListener", "click", cb)
 			// Optionally store cb somewhere to release later if needed
+		}
+
+		return el
+
+	case "h1", "h2", "h3", "h4", "h5", "h6":
+		// Handle heading tags
+		el := doc.Call("createElement", n.Tag)
+
+		if n.Attributes != nil {
+			for k, v := range n.Attributes {
+				setAttributeValue(el, k, v)
+			}
+		}
+
+		if n.Content != "" {
+			el.Set("textContent", n.Content)
+		}
+
+		if n.Children != nil {
+			for _, child := range n.Children {
+				childEl := createElement(child)
+				if childEl.Truthy() {
+					el.Call("appendChild", childEl)
+				}
+			}
+		}
+
+		return el
+
+	case "ul", "ol":
+		// Handle list container tags
+		el := doc.Call("createElement", n.Tag)
+
+		if n.Attributes != nil {
+			for k, v := range n.Attributes {
+				setAttributeValue(el, k, v)
+			}
+		}
+
+		if n.Children != nil {
+			for _, child := range n.Children {
+				childEl := createElement(child)
+				if childEl.Truthy() {
+					el.Call("appendChild", childEl)
+				}
+			}
+		}
+
+		return el
+
+	case "li":
+		// Handle list item tags
+		el := doc.Call("createElement", "li")
+
+		if n.Attributes != nil {
+			for k, v := range n.Attributes {
+				setAttributeValue(el, k, v)
+			}
+		}
+
+		if n.Content != "" {
+			el.Set("textContent", n.Content)
+		}
+
+		if n.Children != nil {
+			for _, child := range n.Children {
+				childEl := createElement(child)
+				if childEl.Truthy() {
+					el.Call("appendChild", childEl)
+				}
+			}
 		}
 
 		return el
