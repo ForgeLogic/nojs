@@ -20,6 +20,7 @@ import (
 type componentSchema struct {
 	Props   map[string]propertyDescriptor // Map of Prop name to its Go type (e.g., "Title": "string")
 	Methods map[string]bool               // Set of available method names for event handlers
+	Slot    *propertyDescriptor           // Optional: single content slot field ([]*vdom.VNode)
 }
 
 type propertyDescriptor struct {
@@ -46,6 +47,13 @@ type compileOptions struct {
 type loopContext struct {
 	IndexVar string // e.g., "i" or "_"
 	ValueVar string // e.g., "user"
+}
+
+// textNodePosition tracks the location of an unwrapped text node in slot content.
+type textNodePosition struct {
+	lineNum     int
+	colNum      int
+	textContent string
 }
 
 // Regex to find data binding expressions like {FieldName} or {user.Name}
@@ -441,12 +449,15 @@ func inspectGoFile(path, structName string) (componentSchema, error) {
 	schema := componentSchema{
 		Props:   make(map[string]propertyDescriptor),
 		Methods: make(map[string]bool),
+		Slot:    nil,
 	}
 	fset := token.NewFileSet()
 	node, err := parser.ParseFile(fset, path, nil, 0)
 	if err != nil {
 		return schema, err
 	}
+
+	var slotFields []propertyDescriptor // Track all slot fields for validation
 
 	ast.Inspect(node, func(n ast.Node) bool {
 		// Inspect for struct fields (Props)
@@ -456,10 +467,18 @@ func inspectGoFile(path, structName string) (componentSchema, error) {
 					if len(field.Names) > 0 && field.Names[0].IsExported() {
 						fieldName := field.Names[0].Name
 						goType := extractTypeName(field.Type)
-						schema.Props[strings.ToLower(fieldName)] = propertyDescriptor{
+						propDesc := propertyDescriptor{
 							Name:          fieldName,
 							LowercaseName: strings.ToLower(fieldName),
 							GoType:        goType,
+						}
+
+						// Check if this is a content slot field ([]*vdom.VNode)
+						if goType == "[]*vdom.VNode" {
+							slotFields = append(slotFields, propDesc)
+						} else {
+							// Regular prop field
+							schema.Props[strings.ToLower(fieldName)] = propDesc
 						}
 					}
 				}
@@ -481,6 +500,22 @@ func inspectGoFile(path, structName string) (componentSchema, error) {
 
 		return true
 	})
+
+	// Validate single slot constraint
+	if len(slotFields) > 1 {
+		var fieldNames []string
+		for _, sf := range slotFields {
+			fieldNames = append(fieldNames, sf.Name)
+		}
+		fmt.Fprintf(os.Stderr, "Compilation Error: could not inspect Go file %s: component '%s' has multiple content slot fields: [%s]. Only one []*vdom.VNode field is allowed per component\n",
+			path, structName, strings.Join(fieldNames, ", "))
+		os.Exit(1)
+	}
+
+	// Set the single slot field if found
+	if len(slotFields) == 1 {
+		schema.Slot = &slotFields[0]
+	}
 
 	return schema, nil
 }
@@ -1059,8 +1094,25 @@ func generateNodeCode(n *html.Node, receiver string, componentMap map[string]com
 
 		// 1. Handle Custom Components
 		if compInfo, isComponent := componentMap[tagName]; isComponent {
-			propsStr := generateStructLiteral(n, compInfo, htmlSource, currentComp.Path)
-			key := fmt.Sprintf("%s_%d", compInfo.PascalName, childCount(n.Parent, n)) // Simple key generation
+			propsStr := generateStructLiteral(n, compInfo, receiver, componentMap, currentComp, htmlSource, currentComp.Path, opts, loopCtx)
+
+			// Generate key: if inside a loop, include trackBy value for uniqueness
+			var key string
+			if loopCtx != nil {
+				// Inside a loop: use trackBy expression to ensure unique keys
+				// Extract trackBy from the parent go-for node
+				trackByExpr := extractTrackByFromParent(n)
+				if trackByExpr != "" {
+					// Use the trackBy value in the key
+					key = fmt.Sprintf(`%s_" + fmt.Sprintf("%%v", %s) + "`, compInfo.PascalName, trackByExpr)
+				} else {
+					// Fallback: use simple counter
+					key = fmt.Sprintf("%s_%d", compInfo.PascalName, childCount(n.Parent, n))
+				}
+			} else {
+				// Not in a loop: use simple counter
+				key = fmt.Sprintf("%s_%d", compInfo.PascalName, childCount(n.Parent, n))
+			}
 
 			return fmt.Sprintf(`r.RenderChild("%s", &%s%s)`, key, compInfo.PascalName, propsStr)
 		}
@@ -1068,10 +1120,53 @@ func generateNodeCode(n *html.Node, receiver string, componentMap map[string]com
 		// 2. Handle Standard HTML Elements
 		var childrenCode []string
 		hasForLoop := false
+		hasSlotSpread := false
 		for c := n.FirstChild; c != nil; c = c.NextSibling {
 			// Check if this child is a go-for node
 			if c.Type == html.ElementNode && c.Data == "go-for" {
 				hasForLoop = true
+			}
+			// Check if this is a slot spread (text node with {SlotField})
+			if c.Type == html.TextNode {
+				trimmed := strings.TrimSpace(c.Data)
+				if matches := dataBindingRegex.FindStringSubmatch(trimmed); len(matches) > 0 {
+					fieldName := matches[1]
+
+					// Check if this references the slot field
+					if currentComp.Schema.Slot != nil && strings.ToLower(fieldName) == currentComp.Schema.Slot.LowercaseName {
+						// This is a slot spread
+						hasSlotSpread = true
+
+						// Generate dev warning if enabled
+						if opts.DevWarnings {
+							warningCode := fmt.Sprintf("func() []*vdom.VNode {\nif len(%s.%s) == 0 {\nconsole.Warning(\"[Slot] Rendering empty content slot '%s' in component '%s'. Parent provided no content.\")\n}\nreturn %s.%s\n}()...",
+								receiver, currentComp.Schema.Slot.Name, currentComp.Schema.Slot.Name, currentComp.PascalName, receiver, currentComp.Schema.Slot.Name)
+							childrenCode = append(childrenCode, warningCode)
+						} else {
+							// No dev warning: just spread the slot
+							childrenCode = append(childrenCode, fmt.Sprintf("%s.%s...", receiver, currentComp.Schema.Slot.Name))
+						}
+						continue
+					}
+
+					// Also check regular props for backward compatibility
+					if propDesc, ok := currentComp.Schema.Props[strings.ToLower(fieldName)]; ok {
+						if propDesc.GoType == "[]*vdom.VNode" {
+							// This shouldn't happen anymore since []*vdom.VNode fields are slots
+							// But keep this as fallback
+							hasSlotSpread = true
+
+							if opts.DevWarnings {
+								warningCode := fmt.Sprintf("func() []*vdom.VNode {\nif len(%s.%s) == 0 {\nconsole.Warning(\"[Slot] Rendering empty content slot '%s' in component '%s'. Parent provided no content.\")\n}\nreturn %s.%s\n}()...",
+									receiver, propDesc.Name, propDesc.Name, currentComp.PascalName, receiver, propDesc.Name)
+								childrenCode = append(childrenCode, warningCode)
+							} else {
+								childrenCode = append(childrenCode, fmt.Sprintf("%s.%s...", receiver, propDesc.Name))
+							}
+							continue
+						}
+					}
+				}
 			}
 			childCode := generateNodeCode(c, receiver, componentMap, currentComp, htmlSource, opts, loopCtx)
 			if childCode != "" {
@@ -1080,15 +1175,24 @@ func generateNodeCode(n *html.Node, receiver string, componentMap map[string]com
 		}
 
 		var childrenStr string
-		if hasForLoop {
-			// When we have a for loop, we need to build children differently
+		if hasForLoop || hasSlotSpread {
+			// When we have a for loop or slot spread, we need to build children differently
 			// Generate code that collects all children into a slice
 			childrenStr = "func() []*vdom.VNode {\nvar allChildren []*vdom.VNode\n"
 			for _, code := range childrenCode {
 				// Check if this looks like a for loop return (starts with "func")
 				if strings.HasPrefix(strings.TrimSpace(code), "func()") {
-					childrenStr += fmt.Sprintf("allChildren = append(allChildren, %s...)\n", code)
+					// For loop or slot with dev warning returns []*vdom.VNode, need spread operator
+					if !strings.HasSuffix(code, "...") {
+						childrenStr += fmt.Sprintf("allChildren = append(allChildren, %s...)\n", code)
+					} else {
+						childrenStr += fmt.Sprintf("allChildren = append(allChildren, %s)\n", code)
+					}
+				} else if strings.HasSuffix(code, "...") {
+					// Already has spread operator (e.g., c.SlotField...)
+					childrenStr += fmt.Sprintf("allChildren = append(allChildren, %s)\n", code)
 				} else {
+					// Regular single VNode
 					childrenStr += fmt.Sprintf("allChildren = append(allChildren, %s)\n", code)
 				}
 			}
@@ -1100,8 +1204,20 @@ func generateNodeCode(n *html.Node, receiver string, componentMap map[string]com
 		attrsMapStr := generateAttributesMap(n, receiver, currentComp, htmlSource)
 
 		switch tagName {
-		case "div", "ul", "ol":
+		case "div":
 			return fmt.Sprintf("vdom.Div(%s, %s)", attrsMapStr, childrenStr)
+		case "ul", "ol":
+			// Handle spread operator for ul/ol elements
+			if hasForLoop || hasSlotSpread {
+				// childrenStr ends with "...", need to wrap in an IIFE that returns a slice
+				return fmt.Sprintf("vdom.NewVNode(%s, %s, %s, \"\")", strconv.Quote(tagName), attrsMapStr, strings.TrimSuffix(childrenStr, "..."))
+			} else {
+				// Regular children list
+				if childrenStr == "" {
+					return fmt.Sprintf("vdom.NewVNode(%s, %s, nil, \"\")", strconv.Quote(tagName), attrsMapStr)
+				}
+				return fmt.Sprintf("vdom.NewVNode(%s, %s, []*vdom.VNode{%s}, \"\")", strconv.Quote(tagName), attrsMapStr, childrenStr)
+			}
 		case "p", "button", "li", "h1", "h2", "h3", "h4", "h5", "h6":
 			textContent := ""
 			if n.FirstChild != nil && n.FirstChild.Type == html.TextNode {
@@ -1132,7 +1248,8 @@ func generateNodeCode(n *html.Node, receiver string, componentMap map[string]com
 }
 
 // generateStructLiteral creates the { Field: value, ... } string.
-func generateStructLiteral(n *html.Node, compInfo componentInfo, htmlSource string, templatePath string) string {
+// If the component has a content slot, it collects child nodes and includes them in the struct literal.
+func generateStructLiteral(n *html.Node, compInfo componentInfo, receiver string, componentMap map[string]componentInfo, currentComp componentInfo, htmlSource string, templatePath string, opts compileOptions, loopCtx *loopContext) string {
 	var props []string
 
 	// Extract the original attribute names from the HTML source
@@ -1151,7 +1268,7 @@ func generateStructLiteral(n *html.Node, compInfo componentInfo, htmlSource stri
 			lookupKey := strings.ToLower(originalKey)
 
 			if propDesc, ok := compInfo.Schema.Props[lookupKey]; ok {
-				valueStr := convertPropValue(attr.Val, propDesc.GoType)
+				valueStr := convertPropValue(attr.Val, propDesc.GoType, receiver, currentComp, htmlSource, lineNumber, loopCtx)
 				props = append(props, fmt.Sprintf("%s: %s", propDesc.Name, valueStr))
 			} else {
 				// Attribute starts with capital letter but doesn't match any exported field
@@ -1163,8 +1280,20 @@ func generateStructLiteral(n *html.Node, compInfo componentInfo, htmlSource stri
 			}
 		} else if propDesc, ok := compInfo.Schema.Props[attr.Key]; ok {
 			// Lowercase attribute that happens to match a field
-			valueStr := convertPropValue(attr.Val, propDesc.GoType)
+			valueStr := convertPropValue(attr.Val, propDesc.GoType, receiver, currentComp, htmlSource, lineNumber, loopCtx)
 			props = append(props, fmt.Sprintf("%s: %s", propDesc.Name, valueStr))
+		}
+	}
+
+	// Handle content slot if component has one
+	if compInfo.Schema.Slot != nil {
+		slotContent := collectSlotChildren(n, receiver, componentMap, currentComp, compInfo.PascalName, templatePath, htmlSource, opts, loopCtx)
+		if slotContent == "" {
+			// Empty slot: compile to nil
+			props = append(props, fmt.Sprintf("%s: nil", compInfo.Schema.Slot.Name))
+		} else {
+			// Has children: compile to VNode slice
+			props = append(props, fmt.Sprintf("%s: %s", compInfo.Schema.Slot.Name, slotContent))
 		}
 	}
 
@@ -1287,9 +1416,15 @@ func getContextLines(source string, lineNumber int, contextSize int) string {
 }
 
 // convertPropValue generates the Go code to convert a string to the target type.
-func convertPropValue(value, goType string) string {
+// It handles data binding expressions in attribute values, respecting loop context.
+func convertPropValue(value, goType string, receiver string, currentComp componentInfo, htmlSource string, lineNumber int, loopCtx *loopContext) string {
 	switch goType {
 	case "string":
+		// Check if the value contains data binding expressions
+		if dataBindingRegex.MatchString(value) {
+			// Use generateTextExpression to handle bindings (including loop variables)
+			return generateTextExpression(value, receiver, currentComp, htmlSource, lineNumber, loopCtx)
+		}
 		return strconv.Quote(value)
 	case "int":
 		// In a real compiler, you'd handle the error. Here we assume valid input.
@@ -1346,4 +1481,170 @@ func childCount(parent *html.Node, until *html.Node) int {
 	}
 
 	return count
+}
+
+// extractTrackByFromParent walks up the node tree to find a go-for parent and extracts its trackBy expression.
+func extractTrackByFromParent(n *html.Node) string {
+	for p := n.Parent; p != nil; p = p.Parent {
+		if p.Type == html.ElementNode && p.Data == "go-for" {
+			// Found the parent loop node, extract trackBy
+			for _, attr := range p.Attr {
+				if attr.Key == "data-trackby" {
+					return attr.Val
+				}
+			}
+		}
+	}
+	return ""
+}
+
+// getSourceLine returns the source line at the given line number (1-indexed).
+func getSourceLine(htmlSource string, lineNum int) string {
+	lines := strings.Split(htmlSource, "\n")
+	if lineNum > 0 && lineNum <= len(lines) {
+		return lines[lineNum-1]
+	}
+	return ""
+}
+
+// estimateTextNodeLineNumber estimates the line number where a text node appears in the source.
+func estimateTextNodeLineNumber(htmlSource string, textContent string) int {
+	// Simple heuristic: find the line containing the trimmed text
+	trimmed := strings.TrimSpace(textContent)
+	if trimmed == "" {
+		return 0
+	}
+
+	lines := strings.Split(htmlSource, "\n")
+	for i, line := range lines {
+		if strings.Contains(line, trimmed) {
+			return i + 1 // 1-indexed
+		}
+	}
+	return 0
+}
+
+// estimateComponentTagLineNumber finds the line number of a component tag that contains specific text.
+// This is more accurate than estimateLineNumber for finding the right occurrence.
+func estimateComponentTagLineNumber(htmlSource string, n *html.Node, componentName string) int {
+	// Try to find unique characteristics of this specific component usage
+	// Look for attributes that make it unique
+	var uniqueAttr string
+	for _, attr := range n.Attr {
+		if attr.Key == "title" || strings.HasPrefix(attr.Key, "Title") {
+			uniqueAttr = attr.Val
+			break
+		}
+	}
+
+	searchPattern := fmt.Sprintf("<%s", componentName)
+	if uniqueAttr != "" {
+		// Search for the tag with this specific attribute
+		lines := strings.Split(htmlSource, "\n")
+		for i, line := range lines {
+			if strings.Contains(line, searchPattern) && strings.Contains(line, uniqueAttr) {
+				return i + 1 // 1-indexed
+			}
+		}
+	}
+
+	// Fallback to simple search
+	return estimateLineNumber(htmlSource, searchPattern)
+}
+
+// generateSlotTextNodeError generates a detailed error message for unwrapped text in slot content.
+func generateSlotTextNodeError(
+	componentName string,
+	templatePath string,
+	htmlSource string,
+	textNodes []textNodePosition,
+	componentTagLine int,
+) {
+	var errorMsg strings.Builder
+
+	// Header
+	firstPos := textNodes[0]
+	fmt.Fprintf(&errorMsg, "Compilation Error in %s:%d:%d: Slot content contains unwrapped text in component '%s'\n\n",
+		templatePath, firstPos.lineNum, firstPos.colNum, componentName)
+
+	// Show problematic line(s) with context
+	for _, pos := range textNodes {
+		if pos.lineNum == 0 {
+			continue
+		}
+
+		line := getSourceLine(htmlSource, pos.lineNum)
+		fmt.Fprintf(&errorMsg, "%d | %s\n", pos.lineNum, line)
+
+		// Add caret highlighting
+		trimmedText := strings.TrimSpace(pos.textContent)
+		colOffset := strings.Index(line, trimmedText)
+		if colOffset >= 0 {
+			padding := strings.Repeat(" ", len(fmt.Sprintf("%d | ", pos.lineNum))+colOffset)
+			carets := strings.Repeat("^", len(trimmedText))
+			fmt.Fprintf(&errorMsg, "%s%s\n", padding, carets)
+		}
+	}
+
+	// Suggestion: multi-line format
+	fmt.Fprintf(&errorMsg, "\nSlot content must be wrapped in HTML elements. Wrap the text in a tag:\n\n")
+	fmt.Fprintf(&errorMsg, "%d | <%s ...>\n", componentTagLine, componentName)
+	fmt.Fprintf(&errorMsg, "%d |   <p>Text content here</p>\n", componentTagLine+1)
+	fmt.Fprintf(&errorMsg, "%d | </%s>\n", componentTagLine+2, componentName)
+
+	// Suggestion: inline format
+	fmt.Fprintf(&errorMsg, "\nOr use <span> for inline text:\n\n")
+	fmt.Fprintf(&errorMsg, "%d | <%s ...><span>Text content</span></%s>\n",
+		componentTagLine, componentName, componentName)
+
+	// Print to stderr and exit
+	fmt.Fprint(os.Stderr, errorMsg.String())
+	os.Exit(1)
+}
+
+// collectSlotChildren collects child nodes for content projection and generates VNode slice code.
+// Returns empty string if no children, otherwise returns Go code for []*vdom.VNode{...}
+// Validates that slot content does not contain unwrapped text nodes.
+func collectSlotChildren(n *html.Node, receiver string, componentMap map[string]componentInfo, currentComp componentInfo, componentName string, templatePath string, htmlSource string, opts compileOptions, loopCtx *loopContext) string {
+	var childrenCode []string
+	var unwrappedTextNodes []textNodePosition
+
+	// First pass: collect children and detect unwrapped text nodes
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		if c.Type == html.TextNode {
+			// Check if this is meaningful text (not just whitespace)
+			trimmed := strings.TrimSpace(c.Data)
+			if trimmed != "" {
+				// Found unwrapped text node
+				lineNum := estimateTextNodeLineNumber(htmlSource, c.Data)
+				colNum := 1 // Column estimation would require more complex parsing
+				unwrappedTextNodes = append(unwrappedTextNodes, textNodePosition{
+					lineNum:     lineNum,
+					colNum:      colNum,
+					textContent: trimmed,
+				})
+			}
+			// Skip whitespace-only text nodes
+			continue
+		}
+
+		childCode := generateNodeCode(c, receiver, componentMap, currentComp, htmlSource, opts, loopCtx)
+		if childCode != "" {
+			childrenCode = append(childrenCode, childCode)
+		}
+	}
+
+	// If we found unwrapped text nodes, generate error
+	if len(unwrappedTextNodes) > 0 {
+		// Get accurate component tag line number
+		componentTagLine := estimateComponentTagLineNumber(htmlSource, n, componentName)
+		generateSlotTextNodeError(componentName, templatePath, htmlSource, unwrappedTextNodes, componentTagLine)
+		// Note: generateSlotTextNodeError calls os.Exit(1), so we never reach here
+	}
+
+	if len(childrenCode) == 0 {
+		return "" // No children, will compile to nil
+	}
+
+	return fmt.Sprintf("[]*vdom.VNode{%s}", strings.Join(childrenCode, ", "))
 }

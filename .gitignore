@@ -11,3 +11,5 @@ compiler/compiler.exe
 # Ignore the file generated go files in any directory
 /**/*.generated.go
 
+compiler/aotcompiler
+core-dev.css
