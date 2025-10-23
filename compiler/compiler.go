@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/vcrobe/nojs/events"
 	"golang.org/x/net/html"
 	"golang.org/x/tools/go/packages"
 )
@@ -19,7 +20,7 @@ import (
 // componentSchema holds the type information for a component's props.
 type componentSchema struct {
 	Props   map[string]propertyDescriptor // Map of Prop name to its Go type (e.g., "Title": "string")
-	Methods map[string]bool               // Set of available method names for event handlers
+	Methods map[string]methodDescriptor   // Map of method names to their signatures
 	Slot    *propertyDescriptor           // Optional: single content slot field ([]*vdom.VNode)
 }
 
@@ -27,6 +28,19 @@ type propertyDescriptor struct {
 	Name          string
 	LowercaseName string
 	GoType        string
+}
+
+// methodDescriptor holds the signature information for a component method.
+type methodDescriptor struct {
+	Name    string            // Method name (e.g., "HandleClick")
+	Params  []paramDescriptor // Parameter list
+	Returns []string          // Return type names (currently unused, reserved for future)
+}
+
+// paramDescriptor describes a single parameter in a method signature.
+type paramDescriptor struct {
+	Name string // Parameter name (e.g., "e")
+	Type string // Fully-qualified type (e.g., "events.ChangeEventArgs", "string")
 }
 
 // componentInfo holds all discovered information about a component.
@@ -271,6 +285,86 @@ func validateBooleanCondition(condition string, comp componentInfo, templatePath
 	return propDesc
 }
 
+// validateEventHandler validates that an event handler exists and has the correct signature.
+// Returns the methodDescriptor if valid, or exits with a compile error and helpful suggestions.
+func validateEventHandler(eventName, handlerName, tagName string, comp componentInfo, templatePath string, lineNumber int, htmlSource string) methodDescriptor {
+	// Get the event signature from the registry
+	eventSig := events.GetEventSignature(eventName)
+	if eventSig == nil {
+		contextLines := getContextLines(htmlSource, lineNumber, 2)
+		fmt.Fprintf(os.Stderr, "Compilation Error in %s:%d: Unknown event '@%s'.\n%s\nSupported events: @onclick, @oninput, @onchange, @onkeydown, @onkeyup, @onkeypress, @onfocus, @onblur, @onsubmit, @onmousedown, @onmouseup, @onmousemove\n",
+			templatePath, lineNumber, eventName, contextLines)
+		os.Exit(1)
+	}
+
+	// Check if the event is supported on this HTML tag
+	if !events.IsEventSupported(eventName, tagName) {
+		contextLines := getContextLines(htmlSource, lineNumber, 2)
+		fmt.Fprintf(os.Stderr, "Compilation Error in %s:%d: Event '@%s' is not supported on <%s>.\n%s\nSupported elements for @%s: %v\n",
+			templatePath, lineNumber, eventName, tagName, contextLines, eventName, eventSig.SupportedTags)
+		os.Exit(1)
+	}
+
+	// Check if the handler method exists
+	method, exists := comp.Schema.Methods[handlerName]
+	if !exists {
+		contextLines := getContextLines(htmlSource, lineNumber, 2)
+		availableMethods := getAvailableMethodNames(comp.Schema.Methods)
+		fmt.Fprintf(os.Stderr, "Compilation Error in %s:%d: Handler method '%s' not found on component '%s'.\n%s\nAvailable methods: %s\n",
+			templatePath, lineNumber, handlerName, comp.PascalName, contextLines, availableMethods)
+		os.Exit(1)
+	}
+
+	// Validate the method signature
+	if eventSig.RequiresArgs {
+		// Event requires arguments - handler must have exactly one parameter of the correct type
+		if len(method.Params) != 1 {
+			contextLines := getContextLines(htmlSource, lineNumber, 2)
+			fmt.Fprintf(os.Stderr, "Compilation Error in %s:%d: Handler '%s' for '@%s' has incorrect signature.\n%s\nExpected: func(c *%s) %s(e %s)\nFound:    func(c *%s) %s(",
+				templatePath, lineNumber, handlerName, eventName, contextLines,
+				comp.PascalName, handlerName, eventSig.ArgsType,
+				comp.PascalName, handlerName)
+			for i, p := range method.Params {
+				if i > 0 {
+					fmt.Fprintf(os.Stderr, ", ")
+				}
+				fmt.Fprintf(os.Stderr, "%s %s", p.Name, p.Type)
+			}
+			fmt.Fprintf(os.Stderr, ")\n")
+			os.Exit(1)
+		}
+
+		// Check if the parameter type matches
+		if method.Params[0].Type != eventSig.ArgsType {
+			contextLines := getContextLines(htmlSource, lineNumber, 2)
+			fmt.Fprintf(os.Stderr, "Compilation Error in %s:%d: Handler '%s' for '@%s' has wrong parameter type.\n%s\nExpected: func(c *%s) %s(e %s)\nFound:    func(c *%s) %s(e %s)\n",
+				templatePath, lineNumber, handlerName, eventName, contextLines,
+				comp.PascalName, handlerName, eventSig.ArgsType,
+				comp.PascalName, handlerName, method.Params[0].Type)
+			os.Exit(1)
+		}
+	} else {
+		// Event requires no arguments - handler must have zero parameters
+		if len(method.Params) != 0 {
+			contextLines := getContextLines(htmlSource, lineNumber, 2)
+			fmt.Fprintf(os.Stderr, "Compilation Error in %s:%d: Handler '%s' for '@%s' has incorrect signature.\n%s\nExpected: func(c *%s) %s()\nFound:    func(c *%s) %s(",
+				templatePath, lineNumber, handlerName, eventName, contextLines,
+				comp.PascalName, handlerName,
+				comp.PascalName, handlerName)
+			for i, p := range method.Params {
+				if i > 0 {
+					fmt.Fprintf(os.Stderr, ", ")
+				}
+				fmt.Fprintf(os.Stderr, "%s %s", p.Name, p.Type)
+			}
+			fmt.Fprintf(os.Stderr, ")\n\nSuggestion: For '@%s' events on <%s>, the handler should not take any parameters.\n", eventName, tagName)
+			os.Exit(1)
+		}
+	}
+
+	return method
+}
+
 // generateTernaryExpression generates Go code for a ternary conditional expression.
 // Supports negation operator: if negated is true, inverts the condition.
 func generateTernaryExpression(negated bool, condition, trueVal, falseVal, receiver string, propDesc propertyDescriptor) string {
@@ -358,7 +452,7 @@ func discoverAndInspectComponents(rootDir string) ([]componentInfo, error) {
 				fmt.Printf("Warning: could not inspect Go file %s: %v\n", goFilePath, err)
 				schema = componentSchema{
 					Props:   make(map[string]propertyDescriptor),
-					Methods: make(map[string]bool),
+					Methods: make(map[string]methodDescriptor),
 				}
 			}
 
@@ -403,12 +497,59 @@ func extractTypeName(expr ast.Expr) string {
 	return "unknown"
 }
 
+// extractParams extracts parameter descriptors from a function's parameter list.
+func extractParams(fields *ast.FieldList) []paramDescriptor {
+	if fields == nil {
+		return nil
+	}
+	var params []paramDescriptor
+	for _, field := range fields.List {
+		typeName := extractTypeName(field.Type)
+		// Handle cases where multiple params share the same type: func(a, b string)
+		if len(field.Names) > 0 {
+			for _, name := range field.Names {
+				params = append(params, paramDescriptor{
+					Name: name.Name,
+					Type: typeName,
+				})
+			}
+		} else {
+			// Unnamed parameter (rare but valid Go)
+			params = append(params, paramDescriptor{
+				Name: "",
+				Type: typeName,
+			})
+		}
+	}
+	return params
+}
+
+// extractReturns extracts return type names from a function's return list.
+func extractReturns(fields *ast.FieldList) []string {
+	if fields == nil {
+		return nil
+	}
+	var returns []string
+	for _, field := range fields.List {
+		typeName := extractTypeName(field.Type)
+		// Multiple return values of the same type: func() (int, int)
+		if len(field.Names) > 0 {
+			for range field.Names {
+				returns = append(returns, typeName)
+			}
+		} else {
+			returns = append(returns, typeName)
+		}
+	}
+	return returns
+}
+
 // inspectStructInFile is a helper that inspects a specific struct type in a Go file.
 // It returns a schema with the struct's exported fields.
 func inspectStructInFile(path, structName string) (componentSchema, error) {
 	schema := componentSchema{
 		Props:   make(map[string]propertyDescriptor),
-		Methods: make(map[string]bool),
+		Methods: make(map[string]methodDescriptor),
 	}
 	fset := token.NewFileSet()
 	node, err := parser.ParseFile(fset, path, nil, 0)
@@ -448,7 +589,7 @@ func inspectStructInFile(path, structName string) (componentSchema, error) {
 func inspectGoFile(path, structName string) (componentSchema, error) {
 	schema := componentSchema{
 		Props:   make(map[string]propertyDescriptor),
-		Methods: make(map[string]bool),
+		Methods: make(map[string]methodDescriptor),
 		Slot:    nil,
 	}
 	fset := token.NewFileSet()
@@ -493,7 +634,12 @@ func inspectGoFile(path, structName string) (componentSchema, error) {
 			}
 			if typeIdent, ok := recv.(*ast.Ident); ok && typeIdent.Name == structName {
 				if funcDecl.Name.IsExported() {
-					schema.Methods[funcDecl.Name.Name] = true
+					methodDesc := methodDescriptor{
+						Name:    funcDecl.Name.Name,
+						Params:  extractParams(funcDecl.Type.Params),
+						Returns: extractReturns(funcDecl.Type.Results),
+					}
+					schema.Methods[funcDecl.Name.Name] = methodDesc
 				}
 			}
 		}
@@ -565,10 +711,12 @@ package %[2]s
 
 import (
 	"fmt"
-	"github.com/vcrobe/nojs/vdom"
-	"github.com/vcrobe/nojs/runtime"
-	"github.com/vcrobe/nojs/console"
 	"strconv" // Added for type conversions
+
+	"github.com/vcrobe/nojs/console"
+	"github.com/vcrobe/nojs/events"
+	"github.com/vcrobe/nojs/runtime"
+	"github.com/vcrobe/nojs/vdom"
 )
 
 // Render generates the VNode tree for the %[1]s component.
@@ -576,6 +724,8 @@ func (c *%[1]s) Render(r *runtime.Renderer) *vdom.VNode {
 	_ = strconv.Itoa // Suppress unused import error if no props are converted
 	_ = fmt.Sprintf  // Suppress unused import error if no bindings are used
 	_ = console.Log  // Suppress unused import error if no loops use dev warnings
+	_ = events.AdaptNoArgEvent // Suppress unused import error if no event handlers are used
+
 	return %[3]s
 }
 `
@@ -595,29 +745,52 @@ func (c *%[1]s) Render(r *runtime.Renderer) *vdom.VNode {
 
 // generateAttributesMap is a helper to create the Go map literal for an element's attributes.
 func generateAttributesMap(n *html.Node, receiver string, currentComp componentInfo, htmlSource string) string {
-	var attrs, events []string
+	var attrs, eventHandlers []string
 	for _, a := range n.Attr {
 		if after, ok := strings.CutPrefix(a.Key, "@"); ok {
 			eventName := after
 			handlerName := a.Val
-			// Compile-time safety check!
-			if _, ok := currentComp.Schema.Methods[handlerName]; !ok {
-				// Find the line number for this event attribute
-				lineNumber := findEventLineNumber(n, eventName, htmlSource)
-				availableMethods := getAvailableMethodNames(currentComp.Schema.Methods)
-				contextLines := getContextLines(htmlSource, lineNumber, 2)
-				fmt.Fprintf(os.Stderr, "Compilation Error in %s:%d: Method '%s' not found on component '%s'. Available methods: [%s]\n%s",
-					currentComp.Path, lineNumber, handlerName, currentComp.PascalName, availableMethods, contextLines)
-				os.Exit(1)
+			lineNumber := findEventLineNumber(n, eventName, htmlSource)
+
+			// Validate event handler signature (compile-time type safety!)
+			method := validateEventHandler(eventName, handlerName, n.Data, currentComp, currentComp.Path, lineNumber, htmlSource)
+
+			// Get the event signature to determine if we need an adapter
+			// Note: using full import path since 'events' is also a local variable name
+			eventSig := events.GetEventSignature(eventName)
+
+			// Generate the event handler code
+			handlerRef := fmt.Sprintf(`%s.%s`, receiver, handlerName)
+
+			// Convert @eventname to camelCase for JavaScript (e.g., "onclick" -> "onClick")
+			jsEventName := "on" + strings.ToUpper(eventName[2:3]) + eventName[3:]
+
+			if eventSig.RequiresArgs {
+				// Event requires arguments - use the appropriate adapter
+				var adapterFunc string
+				switch eventSig.ArgsType {
+				case "events.ChangeEventArgs":
+					adapterFunc = "events.AdaptChangeEvent"
+				case "events.KeyboardEventArgs":
+					adapterFunc = "events.AdaptKeyboardEvent"
+				case "events.MouseEventArgs":
+					adapterFunc = "events.AdaptMouseEvent"
+				case "events.FocusEventArgs":
+					adapterFunc = "events.AdaptFocusEvent"
+				case "events.FormEventArgs":
+					adapterFunc = "events.AdaptFormEvent"
+				default:
+					fmt.Fprintf(os.Stderr, "Internal Error: Unknown event args type '%s'\n", eventSig.ArgsType)
+					os.Exit(1)
+				}
+				eventHandlers = append(eventHandlers, fmt.Sprintf(`"%s": %s(%s)`, jsEventName, adapterFunc, handlerRef))
+			} else {
+				// Event requires no arguments - use the no-arg adapter
+				eventHandlers = append(eventHandlers, fmt.Sprintf(`"%s": events.AdaptNoArgEvent(%s)`, jsEventName, handlerRef))
 			}
-			switch eventName {
-			case "onclick":
-				// Generate the Go code to reference the component's method.
-				handler := fmt.Sprintf(`%s.%s`, receiver, handlerName)
-				events = append(events, fmt.Sprintf(`"onClick": %s`, handler))
-			default:
-				fmt.Printf("Warning: Unknown event directive '@%s' in %s.\n", eventName, currentComp.Path)
-			}
+
+			// Mark that method is used (prevents unused warnings)
+			_ = method
 		} else {
 			// Check for inline conditional expressions in attribute values
 			attrValue := a.Val
@@ -699,10 +872,10 @@ func generateAttributesMap(n *html.Node, receiver string, currentComp componentI
 		}
 	}
 
-	if len(attrs) == 0 && len(events) == 0 {
+	if len(attrs) == 0 && len(eventHandlers) == 0 {
 		return "nil"
 	}
-	allProps := append(attrs, events...)
+	allProps := append(attrs, eventHandlers...)
 	return fmt.Sprintf("map[string]any{%s}", strings.Join(allProps, ", "))
 }
 
@@ -1239,6 +1412,42 @@ func generateNodeCode(n *html.Node, receiver string, componentMap map[string]com
 				// For li, h1-h6, use NewVNode directly with text content
 				return fmt.Sprintf("vdom.NewVNode(%s, %s, nil, %s)", strconv.Quote(tagName), attrsMapStr, textContent)
 			}
+		case "input":
+			// Handle input element
+			return fmt.Sprintf("vdom.NewVNode(%s, %s, nil, \"\")", strconv.Quote(tagName), attrsMapStr)
+		case "select":
+			// Handle select element with option children
+			if hasForLoop || hasSlotSpread {
+				return fmt.Sprintf("vdom.NewVNode(%s, %s, %s, \"\")", strconv.Quote(tagName), attrsMapStr, strings.TrimSuffix(childrenStr, "..."))
+			} else {
+				if childrenStr == "" {
+					return fmt.Sprintf("vdom.NewVNode(%s, %s, nil, \"\")", strconv.Quote(tagName), attrsMapStr)
+				}
+				return fmt.Sprintf("vdom.NewVNode(%s, %s, []*vdom.VNode{%s}, \"\")", strconv.Quote(tagName), attrsMapStr, childrenStr)
+			}
+		case "option":
+			// Handle option element
+			textContent := ""
+			if n.FirstChild != nil && n.FirstChild.Type == html.TextNode {
+				lineNum := estimateLineNumber(htmlSource, n.FirstChild.Data)
+				textContent = generateTextExpression(n.FirstChild.Data, receiver, currentComp, htmlSource, lineNum, loopCtx)
+			} else {
+				textContent = `""`
+			}
+			return fmt.Sprintf("vdom.NewVNode(%s, %s, nil, %s)", strconv.Quote(tagName), attrsMapStr, textContent)
+		case "textarea":
+			// Handle textarea element
+			return fmt.Sprintf("vdom.NewVNode(%s, %s, nil, \"\")", strconv.Quote(tagName), attrsMapStr)
+		case "form":
+			// Handle form element with children
+			if hasForLoop || hasSlotSpread {
+				return fmt.Sprintf("vdom.NewVNode(%s, %s, %s, \"\")", strconv.Quote(tagName), attrsMapStr, strings.TrimSuffix(childrenStr, "..."))
+			} else {
+				if childrenStr == "" {
+					return fmt.Sprintf("vdom.NewVNode(%s, %s, nil, \"\")", strconv.Quote(tagName), attrsMapStr)
+				}
+				return fmt.Sprintf("vdom.NewVNode(%s, %s, []*vdom.VNode{%s}, \"\")", strconv.Quote(tagName), attrsMapStr, childrenStr)
+			}
 		default:
 			return `vdom.Div(nil)` // Default to an empty div for unknown tags
 		}
@@ -1352,7 +1561,7 @@ func getAvailableFieldNames(props map[string]propertyDescriptor) []string {
 }
 
 // getAvailableMethodNames returns a comma-separated string of available method names for error messages.
-func getAvailableMethodNames(methods map[string]bool) string {
+func getAvailableMethodNames(methods map[string]methodDescriptor) string {
 	var names []string
 	for methodName := range methods {
 		names = append(names, methodName)

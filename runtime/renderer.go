@@ -12,6 +12,7 @@ type Renderer struct {
 	instances map[string]Component
 	root      Component
 	mountID   string
+	prevVDOM  *vdom.VNode // Previous VDOM tree for patching
 }
 
 // NewRenderer creates a new runtime renderer.
@@ -20,6 +21,7 @@ func NewRenderer(root Component, mountID string) *Renderer {
 		instances: make(map[string]Component),
 		root:      root,
 		mountID:   mountID,
+		prevVDOM:  nil,
 	}
 }
 
@@ -30,11 +32,19 @@ func (r *Renderer) RenderRoot() {
 	if r.root != nil {
 		r.root.SetRenderer(r)
 	}
-	vdomTree := r.root.Render(r)
+	newVDOM := r.root.Render(r)
 
-	// Simple strategy: clear the mount point and render fresh.
-	vdom.Clear(r.mountID)
-	vdom.RenderToSelector(r.mountID, vdomTree)
+	if r.prevVDOM == nil {
+		// Initial render: clear and render fresh
+		vdom.Clear(r.mountID)
+		vdom.RenderToSelector(r.mountID, newVDOM)
+	} else {
+		// Subsequent renders: patch the existing DOM
+		vdom.Patch(r.mountID, r.prevVDOM, newVDOM)
+	}
+
+	// Store the new VDOM tree for the next render cycle
+	r.prevVDOM = newVDOM
 }
 
 // RenderChild is called by compiler-generated code to render a child component.
@@ -56,11 +66,7 @@ func (r *Renderer) RenderChild(key string, childWithProps Component) *vdom.VNode
 	return instance.Render(r)
 }
 
-// ReRender clears the DOM and re-renders the entire application from the root.
+// ReRender patches the DOM with minimal changes.
 func (r *Renderer) ReRender() {
-	// // In a real diffing algorithm, you wouldn't clear everything.
-	// // For now, this is our simple and effective strategy.
-	// vdom.Clear(r.mountID)
-	// vdom.RenderToSelector(r.mountID, r.root.Render(r))
 	r.RenderRoot()
 }
