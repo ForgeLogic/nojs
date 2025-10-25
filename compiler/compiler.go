@@ -20,6 +20,7 @@ import (
 // componentSchema holds the type information for a component's props.
 type componentSchema struct {
 	Props   map[string]propertyDescriptor // Map of Prop name to its Go type (e.g., "Title": "string")
+	State   map[string]propertyDescriptor // Map of State name to its Go type (internal component state)
 	Methods map[string]methodDescriptor   // Map of method names to their signatures
 	Slot    *propertyDescriptor           // Optional: single content slot field ([]*vdom.VNode)
 }
@@ -54,7 +55,7 @@ type componentInfo struct {
 
 // compileOptions holds compiler-wide options passed from CLI flags.
 type compileOptions struct {
-	DevWarnings bool // Enable development warnings in generated code
+	DevMode bool // Enable development mode (warnings, verbose errors, panic on lifecycle failures)
 }
 
 // loopContext holds information about variables available in a loop scope.
@@ -250,13 +251,45 @@ func preprocessConditionals(src string, templatePath string) (string, error) {
 }
 
 // estimateLineNumber tries to find the approximate line number where text appears in HTML source.
+// For better accuracy with expressions containing special characters, it searches for distinctive parts.
 func estimateLineNumber(htmlSource, text string) int {
 	lines := strings.Split(htmlSource, "\n")
+
+	// First try: exact match
 	for i, line := range lines {
 		if strings.Contains(line, text) {
-			return i + 1 // Line numbers are 1-indexed
+			return i + 1
 		}
 	}
+
+	// Second try: if text contains ternary pattern, search for the ternary part
+	if strings.Contains(text, "?") && strings.Contains(text, ":") {
+		// Extract a distinctive part (the condition before '?')
+		if idx := strings.Index(text, "?"); idx > 0 {
+			// Get text around the '?' for better matching
+			start := strings.LastIndex(text[:idx], "{")
+			if start >= 0 {
+				searchText := text[start : idx+1] // Include { up to ?
+				for i, line := range lines {
+					if strings.Contains(line, searchText) {
+						return i + 1
+					}
+				}
+			}
+		}
+	}
+
+	// Fallback: search for any significant substring
+	trimmed := strings.TrimSpace(text)
+	if len(trimmed) > 10 {
+		searchText := trimmed[:10]
+		for i, line := range lines {
+			if strings.Contains(line, searchText) {
+				return i + 1
+			}
+		}
+	}
+
 	return 1 // Default to line 1 if not found
 }
 
@@ -270,8 +303,13 @@ func isBooleanAttribute(attrName string) bool {
 func validateBooleanCondition(condition string, comp componentInfo, templatePath string, lineNumber int, htmlSource string) propertyDescriptor {
 	propDesc, exists := comp.Schema.Props[strings.ToLower(condition)]
 	if !exists {
+		// Also check state fields
+		propDesc, exists = comp.Schema.State[strings.ToLower(condition)]
+	}
+	if !exists {
+		allFields := append(getAvailableFieldNames(comp.Schema.Props), getAvailableFieldNames(comp.Schema.State)...)
+		availableFields := strings.Join(allFields, ", ")
 		contextLines := getContextLines(htmlSource, lineNumber, 2)
-		availableFields := strings.Join(getAvailableFieldNames(comp.Schema.Props), ", ")
 		fmt.Fprintf(os.Stderr, "Compilation Error in %s:%d: Condition '%s' not found on component '%s'. Available fields: [%s]\n%s",
 			templatePath, lineNumber, condition, comp.PascalName, availableFields, contextLines)
 		os.Exit(1)
@@ -381,8 +419,8 @@ func generateTernaryExpression(negated bool, condition, trueVal, falseVal, recei
 }
 
 // Compile is the main entry point for the AOT compiler.
-func compile(srcDir, outDir string, devWarnings bool) error {
-	opts := compileOptions{DevWarnings: devWarnings}
+func compile(srcDir, outDir string, devMode bool) error {
+	opts := compileOptions{DevMode: devMode}
 
 	// Step 1: Discover component templates and inspect their Go structs for props.
 	components, err := discoverAndInspectComponents(srcDir)
@@ -589,6 +627,7 @@ func inspectStructInFile(path, structName string) (componentSchema, error) {
 func inspectGoFile(path, structName string) (componentSchema, error) {
 	schema := componentSchema{
 		Props:   make(map[string]propertyDescriptor),
+		State:   make(map[string]propertyDescriptor),
 		Methods: make(map[string]methodDescriptor),
 		Slot:    nil,
 	}
@@ -608,6 +647,21 @@ func inspectGoFile(path, structName string) (componentSchema, error) {
 					if len(field.Names) > 0 && field.Names[0].IsExported() {
 						fieldName := field.Names[0].Name
 						goType := extractTypeName(field.Type)
+
+						// Check if field is marked as state via struct tag
+						isState := false
+						if field.Tag != nil {
+							tag := field.Tag.Value
+							// Parse struct tag - remove surrounding backticks
+							if len(tag) >= 2 {
+								tag = tag[1 : len(tag)-1]
+							}
+							// Check for nojs:"state" tag
+							if strings.Contains(tag, `nojs:"state"`) {
+								isState = true
+							}
+						}
+
 						propDesc := propertyDescriptor{
 							Name:          fieldName,
 							LowercaseName: strings.ToLower(fieldName),
@@ -617,9 +671,12 @@ func inspectGoFile(path, structName string) (componentSchema, error) {
 						// Check if this is a content slot field ([]*vdom.VNode)
 						if goType == "[]*vdom.VNode" {
 							slotFields = append(slotFields, propDesc)
-						} else {
-							// Regular prop field
+						} else if !isState {
+							// Regular prop field - only add if not marked as state
 							schema.Props[strings.ToLower(fieldName)] = propDesc
+						} else {
+							// State field - add to State map for template access
+							schema.State[strings.ToLower(fieldName)] = propDesc
 						}
 					}
 				}
@@ -703,6 +760,9 @@ func compileComponentTemplate(comp componentInfo, componentMap map[string]compon
 	// Generate code for a single root node
 	generatedCode := generateNodeCode(rootElement, "c", componentMap, comp, htmlString, opts, nil)
 
+	// Generate the ApplyProps method body
+	applyPropsBody := generateApplyPropsBody(comp)
+
 	template := `//go:build js || wasm
 // +build js wasm
 
@@ -719,6 +779,18 @@ import (
 	"github.com/vcrobe/nojs/vdom"
 )
 
+// ApplyProps copies props from source to the receiver, preserving internal state.
+// This method is generated automatically by the compiler.
+func (c *%[1]s) ApplyProps(source runtime.Component) {
+	src, ok := source.(*%[1]s)
+	if !ok {
+		// Type mismatch - this should never happen in normal operation
+		return
+	}
+	_ = src // Suppress unused variable warning if no props to copy
+%[4]s
+}
+
 // Render generates the VNode tree for the %[1]s component.
 func (c *%[1]s) Render(r *runtime.Renderer) *vdom.VNode {
 	_ = strconv.Itoa // Suppress unused import error if no props are converted
@@ -730,7 +802,7 @@ func (c *%[1]s) Render(r *runtime.Renderer) *vdom.VNode {
 }
 `
 
-	source := fmt.Sprintf(template, comp.PascalName, comp.PackageName, generatedCode)
+	source := fmt.Sprintf(template, comp.PascalName, comp.PackageName, generatedCode, applyPropsBody)
 
 	// Format the generated source code
 	formattedSource, err := format.Source([]byte(source))
@@ -741,6 +813,44 @@ func (c *%[1]s) Render(r *runtime.Renderer) *vdom.VNode {
 	outFileName := fmt.Sprintf("%s.generated.go", comp.PascalName)
 	outFilePath := filepath.Join(outDir, outFileName)
 	return os.WriteFile(outFilePath, formattedSource, 0644)
+}
+
+// generateApplyPropsBody generates the body of the ApplyProps method.
+// It creates assignment statements to copy all props from source to receiver.
+func generateApplyPropsBody(comp componentInfo) string {
+	if len(comp.Schema.Props) == 0 && comp.Schema.Slot == nil {
+		return "\t// No props to copy"
+	}
+
+	var assignments []string
+
+	// Copy regular props (sorted by name for consistent output)
+	propNames := make([]string, 0, len(comp.Schema.Props))
+	for propName := range comp.Schema.Props {
+		propNames = append(propNames, propName)
+	}
+	// Sort for deterministic output
+	for i := 0; i < len(propNames); i++ {
+		for j := i + 1; j < len(propNames); j++ {
+			if propNames[i] > propNames[j] {
+				propNames[i], propNames[j] = propNames[j], propNames[i]
+			}
+		}
+	}
+
+	for _, propName := range propNames {
+		prop := comp.Schema.Props[propName]
+		assignments = append(assignments,
+			fmt.Sprintf("\tc.%s = src.%s", prop.Name, prop.Name))
+	}
+
+	// Copy slot content if exists
+	if comp.Schema.Slot != nil {
+		assignments = append(assignments,
+			fmt.Sprintf("\tc.%s = src.%s", comp.Schema.Slot.Name, comp.Schema.Slot.Name))
+	}
+
+	return strings.Join(assignments, "\n")
 }
 
 // generateAttributesMap is a helper to create the Go map literal for an element's attributes.
@@ -795,6 +905,23 @@ func generateAttributesMap(n *html.Node, receiver string, currentComp componentI
 			// Check for inline conditional expressions in attribute values
 			attrValue := a.Val
 			lineNum := estimateLineNumber(htmlSource, fmt.Sprintf(`%s="%s"`, a.Key, attrValue))
+
+			// Check for malformed ternary expressions (mismatched braces)
+			openBraces := strings.Count(attrValue, "{")
+			closeBraces := strings.Count(attrValue, "}")
+
+			if openBraces > closeBraces {
+				// Check if this looks like an attempted ternary expression
+				if strings.Contains(attrValue, "?") && strings.Contains(attrValue, ":") && strings.Contains(attrValue, "'") {
+					contextLines := getContextLines(htmlSource, lineNum, 2)
+					fmt.Fprintf(os.Stderr, "Compilation Error in %s:%d: Malformed expression in attribute '%s' - unclosed braces (found %d opening '{' but %d closing '}')\n%s\n"+
+						"This appears to be an incomplete ternary expression.\n"+
+						"Ternary expressions must be complete: {condition ? 'true' : 'false'}\n"+
+						"Expected format: {FieldName ? 'value1' : 'value2'} or {!FieldName ? 'value1' : 'value2'}\n",
+						currentComp.Path, lineNum, a.Key, openBraces, closeBraces, contextLines)
+					os.Exit(1)
+				}
+			}
 
 			// Pattern 1: Boolean attribute shorthand {condition} or {!condition}
 			if match := booleanShorthandRegex.FindStringSubmatch(attrValue); match != nil {
@@ -882,6 +1009,25 @@ func generateAttributesMap(n *html.Node, receiver string, currentComp componentI
 // generateTextExpression handles data binding in text nodes.
 // loopCtx can be nil if not inside a loop.
 func generateTextExpression(text string, receiver string, currentComp componentInfo, htmlSource string, lineNumber int, loopCtx *loopContext) string {
+	// Check for malformed ternary expressions (opening { with ternary pattern but no closing })
+	// Count opening and closing braces to detect mismatches
+	openBraces := strings.Count(text, "{")
+	closeBraces := strings.Count(text, "}")
+
+	// If we have mismatched braces and the text looks like it contains a ternary pattern
+	if openBraces > closeBraces {
+		// Check if this looks like an attempted ternary expression
+		if strings.Contains(text, "?") && strings.Contains(text, ":") && strings.Contains(text, "'") {
+			contextLines := getContextLines(htmlSource, lineNumber, 2)
+			fmt.Fprintf(os.Stderr, "Compilation Error in %s:%d: Malformed expression - unclosed braces (found %d opening '{' but %d closing '}')\n%s\n"+
+				"This appears to be an incomplete ternary expression.\n"+
+				"Ternary expressions must be complete: {condition ? 'true' : 'false'}\n"+
+				"Expected format: {FieldName ? 'value1' : 'value2'} or {!FieldName ? 'value1' : 'value2'}\n",
+				currentComp.Path, lineNumber, openBraces, closeBraces, contextLines)
+			os.Exit(1)
+		}
+	}
+
 	// Check for ternary expressions first
 	ternaryMatches := ternaryExprRegex.FindAllStringSubmatch(text, -1)
 
@@ -963,17 +1109,21 @@ func generateTextExpression(text string, receiver string, currentComp componentI
 			}
 		}
 
-		// Type-safety check: does the field exist on the component struct?
-		if _, ok := currentComp.Schema.Props[strings.ToLower(fieldName)]; !ok {
+		// Type-safety check: does the field exist on the component struct (props or state)?
+		_, inProps := currentComp.Schema.Props[strings.ToLower(fieldName)]
+		_, inState := currentComp.Schema.State[strings.ToLower(fieldName)]
+
+		if !inProps && !inState {
 			// If we're in a loop, provide more context in the error
 			if loopCtx != nil {
+				allFields := append(getAvailableFieldNames(currentComp.Schema.Props), getAvailableFieldNames(currentComp.Schema.State)...)
 				fmt.Fprintf(os.Stderr, "Compilation Error in %s: Field '%s' not found.\n"+
 					"  - Not a loop variable (loop has: %s, %s)\n"+
 					"  - Not a component field (available: %s)\n"+
 					"  - For loop item fields, use: %s.FieldName\n",
 					currentComp.Path, fieldName,
 					loopCtx.IndexVar, loopCtx.ValueVar,
-					strings.Join(getAvailableFieldNames(currentComp.Schema.Props), ", "),
+					strings.Join(allFields, ", "),
 					loopCtx.ValueVar)
 			} else {
 				fmt.Fprintf(os.Stderr, "Compilation Error in %s: Field '%s' not found on component '%s' for data binding.\n",
@@ -1017,7 +1167,12 @@ func generateForLoopCode(n *html.Node, receiver string, componentMap map[string]
 	// Validate that the range expression exists on the component
 	propDesc, exists := currentComp.Schema.Props[strings.ToLower(rangeExpr)]
 	if !exists {
-		availableFields := strings.Join(getAvailableFieldNames(currentComp.Schema.Props), ", ")
+		// Also check state fields
+		propDesc, exists = currentComp.Schema.State[strings.ToLower(rangeExpr)]
+	}
+	if !exists {
+		allFields := append(getAvailableFieldNames(currentComp.Schema.Props), getAvailableFieldNames(currentComp.Schema.State)...)
+		availableFields := strings.Join(allFields, ", ")
 		fmt.Fprintf(os.Stderr, "Compilation Error in %s: Field '%s' not found on component '%s'. Available fields: [%s]\n",
 			currentComp.Path, rangeExpr, currentComp.PascalName, availableFields)
 		os.Exit(1)
@@ -1089,7 +1244,7 @@ func generateForLoopCode(n *html.Node, receiver string, componentMap map[string]
 	code.WriteString(fmt.Sprintf("\tvar %s_nodes []*vdom.VNode\n", valueVar))
 
 	// Add development warning if enabled
-	if opts.DevWarnings {
+	if opts.DevMode {
 		code.WriteString(fmt.Sprintf("\t// Development warning for empty slice\n"))
 		code.WriteString(fmt.Sprintf("\tif len(%s.%s) == 0 {\n", receiver, propDesc.Name))
 		code.WriteString(fmt.Sprintf("\t\tconsole.Warning(\"[@for] Rendering empty list for '%s' in %s. Consider using {@if} to handle empty state.\")\n",
@@ -1147,6 +1302,10 @@ func generateConditionalCode(n *html.Node, receiver string, componentMap map[str
 
 			propDesc, exists := currentComp.Schema.Props[strings.ToLower(cond)]
 			if !exists {
+				// Also check state fields
+				propDesc, exists = currentComp.Schema.State[strings.ToLower(cond)]
+			}
+			if !exists {
 				fmt.Fprintf(os.Stderr, "Compilation Error in %s: Condition '%s' not found on component '%s'.\n", currentComp.Path, cond, currentComp.PascalName)
 				os.Exit(1)
 			}
@@ -1182,6 +1341,10 @@ func generateConditionalCode(n *html.Node, receiver string, componentMap map[str
 			}
 
 			propDesc, exists := currentComp.Schema.Props[strings.ToLower(elseifCond)]
+			if !exists {
+				// Also check state fields
+				propDesc, exists = currentComp.Schema.State[strings.ToLower(elseifCond)]
+			}
 			if !exists {
 				fmt.Fprintf(os.Stderr, "Compilation Error in %s: Condition '%s' not found on component '%s'.\n", currentComp.Path, elseifCond, currentComp.PascalName)
 				os.Exit(1)
@@ -1311,7 +1474,7 @@ func generateNodeCode(n *html.Node, receiver string, componentMap map[string]com
 						hasSlotSpread = true
 
 						// Generate dev warning if enabled
-						if opts.DevWarnings {
+						if opts.DevMode {
 							warningCode := fmt.Sprintf("func() []*vdom.VNode {\nif len(%s.%s) == 0 {\nconsole.Warning(\"[Slot] Rendering empty content slot '%s' in component '%s'. Parent provided no content.\")\n}\nreturn %s.%s\n}()...",
 								receiver, currentComp.Schema.Slot.Name, currentComp.Schema.Slot.Name, currentComp.PascalName, receiver, currentComp.Schema.Slot.Name)
 							childrenCode = append(childrenCode, warningCode)
@@ -1322,14 +1485,18 @@ func generateNodeCode(n *html.Node, receiver string, componentMap map[string]com
 						continue
 					}
 
-					// Also check regular props for backward compatibility
-					if propDesc, ok := currentComp.Schema.Props[strings.ToLower(fieldName)]; ok {
+					// Also check regular props and state for backward compatibility
+					propDesc, ok := currentComp.Schema.Props[strings.ToLower(fieldName)]
+					if !ok {
+						propDesc, ok = currentComp.Schema.State[strings.ToLower(fieldName)]
+					}
+					if ok {
 						if propDesc.GoType == "[]*vdom.VNode" {
 							// This shouldn't happen anymore since []*vdom.VNode fields are slots
 							// But keep this as fallback
 							hasSlotSpread = true
 
-							if opts.DevWarnings {
+							if opts.DevMode {
 								warningCode := fmt.Sprintf("func() []*vdom.VNode {\nif len(%s.%s) == 0 {\nconsole.Warning(\"[Slot] Rendering empty content slot '%s' in component '%s'. Parent provided no content.\")\n}\nreturn %s.%s\n}()...",
 									receiver, propDesc.Name, propDesc.Name, currentComp.PascalName, receiver, propDesc.Name)
 								childrenCode = append(childrenCode, warningCode)
@@ -1636,9 +1803,48 @@ func convertPropValue(value, goType string, receiver string, currentComp compone
 		}
 		return strconv.Quote(value)
 	case "int":
-		// In a real compiler, you'd handle the error. Here we assume valid input.
+		// Check if the value contains data binding expressions (e.g., {UserId})
+		if dataBindingRegex.MatchString(value) {
+			// Extract the field name from the binding
+			matches := dataBindingRegex.FindStringSubmatch(value)
+			if len(matches) > 1 {
+				fieldName := matches[1]
+				// Check if this is a loop variable
+				if loopCtx != nil && fieldName == loopCtx.ValueVar {
+					// Direct reference to loop value variable
+					return fieldName
+				} else if loopCtx != nil && strings.HasPrefix(fieldName, loopCtx.ValueVar+".") {
+					// Reference to a field of the loop value (e.g., user.ID)
+					return fieldName
+				} else {
+					// Reference to component field
+					return fmt.Sprintf("%s.%s", receiver, fieldName)
+				}
+			}
+		}
+		// Literal integer value
 		return fmt.Sprintf("func() int { i, _ := strconv.Atoi(\"%s\"); return i }()", value)
 	case "bool":
+		// Check if the value contains data binding expressions (e.g., {IsActive})
+		if dataBindingRegex.MatchString(value) {
+			// Extract the field name from the binding
+			matches := dataBindingRegex.FindStringSubmatch(value)
+			if len(matches) > 1 {
+				fieldName := matches[1]
+				// Check if this is a loop variable
+				if loopCtx != nil && fieldName == loopCtx.ValueVar {
+					// Direct reference to loop value variable
+					return fieldName
+				} else if loopCtx != nil && strings.HasPrefix(fieldName, loopCtx.ValueVar+".") {
+					// Reference to a field of the loop value
+					return fieldName
+				} else {
+					// Reference to component field
+					return fmt.Sprintf("%s.%s", receiver, fieldName)
+				}
+			}
+		}
+		// Literal boolean value
 		return fmt.Sprintf("func() bool { b, _ := strconv.ParseBool(\"%s\"); return b }()", value)
 	default:
 		// Default to string for unknown types

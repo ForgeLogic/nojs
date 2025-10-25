@@ -13,8 +13,8 @@ func main() {
 	inDir := flag.String("in", ".", "The source directory to scan for *.gt.html files.")
 	// The '-out' flag now specifies the directory where generated Go files will be placed.
 	outDir := flag.String("out", "", "The output directory for the generated Go files.")
-	// The '-dev-warnings' flag enables development warnings in generated code (e.g., empty slice warnings).
-	devWarnings := flag.Bool("dev-warnings", false, "Enable development warnings in generated code (e.g., for empty slices in {@for} loops)")
+	// The '-dev' flag enables development mode (warnings, verbose errors, panic on lifecycle failures).
+	devMode := flag.Bool("dev", false, "Enable development mode (warnings, verbose errors, panic on lifecycle failures)")
 	flag.Parse()
 
 	if *outDir == "" {
@@ -28,10 +28,10 @@ func main() {
 
 	// The CLI's job is now to pass the directories to the core compiler logic.
 	fmt.Printf("Starting compilation...\nSource directory: %s\nOutput directory: %s\n", *inDir, *outDir)
-	if *devWarnings {
-		fmt.Printf("Development warnings: enabled\n")
+	if *devMode {
+		fmt.Printf("Development mode: ENABLED\n")
 	}
-	err := compile(*inDir, *outDir, *devWarnings)
+	err := compile(*inDir, *outDir, *devMode)
 	if err != nil {
 		log.Fatalf("Compilation failed: %v", err)
 	}
