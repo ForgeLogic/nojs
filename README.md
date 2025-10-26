@@ -1,3 +1,17 @@
+# Framework Core Philosophy
+
+Every feature in this framework is guided by a set of core principles. These rules ensure the framework remains robust, intuitive for Go developers, and performant.
+
+- **Type Safety Above All:** The framework will always prefer compile-time safety over runtime flexibility. The AOT compiler acts as a "Go Inspector," reading your Go code to validate props, methods, and expressions, catching errors before they ever reach the browser.
+    
+- **Go-Idiomatic by Default:** The template language and component architecture should feel like a natural extension of Go. Syntax and patterns (like the `for...range` directive) are modeled directly on Go's own semantics to provide a familiar and intuitive developer experience.
+    
+- **Explicit is Better than Implicit:** The framework favors clarity and developer control over "magic." Features like manual state updates (`StateHasChanged()`) and mandatory list keys (`trackBy`) make the flow of data and rendering predictable and easy to debug.
+    
+- **Simplicity Through Focus:** Features that add complexity for little practical benefit will be excluded. The goal is a lean, focused API that provides powerful tools for the most common web development patterns.
+    
+- **Unopinionated by Default:** The framework avoids imposing strict architectural patterns where possible. It provides core functionalities (like component rendering and lifecycle) but leaves broader concerns like state management and project structure largely to the developer, only enforcing opinions when essential for the framework's core operation (e.g., type safety checks, `trackBy` for lists).
+
 # Project Compilation Instructions
 
 To compile this project, please follow these steps:
