@@ -27,7 +27,7 @@ func (r *Renderer) callOnParametersSet(receiver ParameterReceiver, key string) {
 			// In a real production environment, this could be sent to an error tracking service
 		}
 	}()
-	receiver.OnParametersSet()
+	receiver.OnPropertiesSet()
 }
 
 // callOnDestroy invokes the OnDestroy lifecycle method in production mode.

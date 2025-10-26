@@ -33,7 +33,7 @@ func (c *LifecycleChildDemo) OnInit() {
 	go c.runTimer()
 }
 
-func (c *LifecycleChildDemo) OnParametersSet() {
+func (c *LifecycleChildDemo) OnPropertiesSet() {
 }
 
 func (c *LifecycleChildDemo) runTimer() {

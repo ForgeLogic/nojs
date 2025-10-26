@@ -32,7 +32,7 @@ type Initializer interface {
 }
 
 // ParameterReceiver is implemented by components that need to react to parameter changes.
-// OnParametersSet is called every time the component receives (potentially new) parameters
+// OnPropertiesSet is called every time the component receives (potentially new) parameters
 // from its parent, just before Render is called. This includes the initial render.
 //
 // Example:
@@ -44,7 +44,7 @@ type Initializer interface {
 //	    Data       *DataModel
 //	}
 //
-//	func (c *DataDisplay) OnParametersSet() {
+//	func (c *DataDisplay) OnPropertiesSet() {
 //	    // Manual change detection
 //	    if c.DataID != c.prevDataID {
 //	        c.prevDataID = c.DataID
@@ -52,7 +52,7 @@ type Initializer interface {
 //	    }
 //	}
 type ParameterReceiver interface {
-	OnParametersSet()
+	OnPropertiesSet()
 }
 
 // Cleaner is implemented by components that need cleanup when unmounted.

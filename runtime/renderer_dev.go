@@ -13,7 +13,7 @@ func (r *Renderer) callOnInit(initializer Initializer, key string) {
 // callOnParametersSet invokes the OnParametersSet lifecycle method in development mode.
 // In dev mode, panics propagate to aid debugging and fast failure.
 func (r *Renderer) callOnParametersSet(receiver ParameterReceiver, key string) {
-	receiver.OnParametersSet()
+	receiver.OnPropertiesSet()
 }
 
 // callOnDestroy invokes the OnDestroy lifecycle method in development mode.
