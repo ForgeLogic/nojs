@@ -4,29 +4,41 @@
 package runtime
 
 import (
+	"fmt"
+
 	"github.com/vcrobe/nojs/vdom"
 )
 
 // Renderer is the core of the framework's runtime. It manages the component instance tree.
 type Renderer struct {
-	instances   map[string]Component
-	initialized map[string]bool // Track which components have been initialized
-	activeKeys  map[string]bool // Track which components are active in the current render
-	root        Component
-	mountID     string
-	prevVDOM    *vdom.VNode // Previous VDOM tree for patching
+	instances        map[string]Component
+	initialized      map[string]bool   // Track which components have been initialized
+	activeKeys       map[string]bool   // Track which components are active in the current render
+	currentComponent Component         // The currently active root component (set by router or directly)
+	navManager       NavigationManager // Optional: router for client-side navigation
+	mountID          string
+	prevVDOM         *vdom.VNode // Previous VDOM tree for patching
 }
 
 // NewRenderer creates a new runtime renderer.
-func NewRenderer(root Component, mountID string) *Renderer {
+// If navManager is provided, the renderer will support client-side routing.
+// If navManager is nil, the renderer works without routing (useful for non-SPA apps).
+func NewRenderer(navManager NavigationManager, mountID string) *Renderer {
 	return &Renderer{
 		instances:   make(map[string]Component),
 		initialized: make(map[string]bool),
 		activeKeys:  make(map[string]bool),
-		root:        root,
+		navManager:  navManager,
 		mountID:     mountID,
 		prevVDOM:    nil,
 	}
+}
+
+// SetCurrentComponent sets the component to be rendered.
+// This is typically called by the router's onChange callback when navigation occurs.
+// For non-routed apps, it can be called directly with a static component.
+func (r *Renderer) SetCurrentComponent(comp Component) {
+	r.currentComponent = comp
 }
 
 // RenderRoot starts the rendering process for the entire application.
@@ -34,27 +46,27 @@ func (r *Renderer) RenderRoot() {
 	// Reset activeKeys for this render cycle
 	r.activeKeys = make(map[string]bool)
 
-	// On each root render, we build the VDOM tree from the root component.
-	// Ensure the root has a reference to the renderer for StateHasChanged.
-	if r.root != nil {
-		r.root.SetRenderer(r)
+	// On each root render, we build the VDOM tree from the current component.
+	// Ensure the component has a reference to the renderer for StateHasChanged and Navigate.
+	if r.currentComponent != nil {
+		r.currentComponent.SetRenderer(r)
 
 		// Handle root component lifecycle
 		if _, initialized := r.initialized["__root__"]; !initialized {
 			// Call OnInit only once, before first render
-			if initializer, ok := r.root.(Initializer); ok {
+			if initializer, ok := r.currentComponent.(Initializer); ok {
 				r.callOnInit(initializer, "__root__")
 			}
 			r.initialized["__root__"] = true
 		}
 
 		// Call OnParametersSet before every render (including first)
-		if paramReceiver, ok := r.root.(ParameterReceiver); ok {
+		if paramReceiver, ok := r.currentComponent.(ParameterReceiver); ok {
 			r.callOnParametersSet(paramReceiver, "__root__")
 		}
 	}
 
-	newVDOM := r.root.Render(r)
+	newVDOM := r.currentComponent.Render(r)
 
 	if r.prevVDOM == nil {
 		// Initial render: clear and render fresh
@@ -136,4 +148,14 @@ func (r *Renderer) cleanupUnmountedComponents() {
 // ReRender patches the DOM with minimal changes.
 func (r *Renderer) ReRender() {
 	r.RenderRoot()
+}
+
+// Navigate implements the Navigator interface.
+// It delegates to the NavigationManager (router) to perform client-side navigation.
+// Returns an error if no router is configured.
+func (r *Renderer) Navigate(path string) error {
+	if r.navManager == nil {
+		return fmt.Errorf("no router configured for navigation")
+	}
+	return r.navManager.Navigate(path)
 }

@@ -3,6 +3,8 @@
 
 package runtime
 
+import "fmt"
+
 // ComponentBase is a struct that components can embed to gain access to the
 // StateHasChanged method, which triggers a UI re-render.
 type ComponentBase struct {
@@ -25,4 +27,25 @@ func (b *ComponentBase) StateHasChanged() {
 	}
 	// Trigger a re-render of the root component.
 	b.renderer.ReRender()
+}
+
+// Navigate requests client-side navigation to a new path.
+// This is used by components (such as Link) to trigger routing without full page reloads.
+// The path will be passed to the router, which will update the browser URL and
+// render the appropriate component.
+//
+// Example usage in a component:
+//
+//	func (c *MyComponent) HandleClick() {
+//	    if err := c.Navigate("/about"); err != nil {
+//	        println("Navigation failed:", err.Error())
+//	    }
+//	}
+//
+// Returns an error if the renderer is not set or navigation fails.
+func (b *ComponentBase) Navigate(path string) error {
+	if b.renderer == nil {
+		return fmt.Errorf("navigate called, but renderer is nil (component not mounted?)")
+	}
+	return b.renderer.Navigate(path)
 }

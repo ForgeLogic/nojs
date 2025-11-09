@@ -354,6 +354,34 @@ func validateEventHandler(eventName, handlerName, tagName string, comp component
 	}
 
 	// Validate the method signature
+	// Special case: onclick can accept either func() or func(ClickEventArgs)
+	if eventName == "onclick" {
+		if len(method.Params) == 0 {
+			// func() - valid, will use AdaptNoArgEvent
+			return method
+		} else if len(method.Params) == 1 && method.Params[0].Type == "events.ClickEventArgs" {
+			// func(ClickEventArgs) - valid, will use AdaptClickEvent
+			return method
+		} else {
+			// Invalid signature
+			contextLines := getContextLines(htmlSource, lineNumber, 2)
+			fmt.Fprintf(os.Stderr, "Compilation Error in %s:%d: Handler '%s' for '@onclick' has incorrect signature.\n%s\nExpected: func(c *%s) %s() OR func(c *%s) %s(e events.ClickEventArgs)\nFound:    func(c *%s) %s(",
+				templatePath, lineNumber, handlerName, contextLines,
+				comp.PascalName, handlerName,
+				comp.PascalName, handlerName,
+				comp.PascalName, handlerName)
+			for i, p := range method.Params {
+				if i > 0 {
+					fmt.Fprintf(os.Stderr, ", ")
+				}
+				fmt.Fprintf(os.Stderr, "%s %s", p.Name, p.Type)
+			}
+			fmt.Fprintf(os.Stderr, ")\n")
+			os.Exit(1)
+		}
+	}
+
+	// Standard validation for other events
 	if eventSig.RequiresArgs {
 		// Event requires arguments - handler must have exactly one parameter of the correct type
 		if len(method.Params) != 1 {
@@ -875,7 +903,17 @@ func generateAttributesMap(n *html.Node, receiver string, currentComp componentI
 			// Convert @eventname to camelCase for JavaScript (e.g., "onclick" -> "onClick")
 			jsEventName := "on" + strings.ToUpper(eventName[2:3]) + eventName[3:]
 
-			if eventSig.RequiresArgs {
+			// Determine which adapter to use based on event type and method signature
+			if eventName == "onclick" {
+				// onclick supports both func() and func(ClickEventArgs)
+				if len(method.Params) == 0 {
+					// func() - use no-arg adapter
+					eventHandlers = append(eventHandlers, fmt.Sprintf(`"%s": events.AdaptNoArgEvent(%s)`, jsEventName, handlerRef))
+				} else if len(method.Params) == 1 && method.Params[0].Type == "events.ClickEventArgs" {
+					// func(ClickEventArgs) - use click adapter
+					eventHandlers = append(eventHandlers, fmt.Sprintf(`"%s": events.AdaptClickEvent(%s)`, jsEventName, handlerRef))
+				}
+			} else if eventSig.RequiresArgs {
 				// Event requires arguments - use the appropriate adapter
 				var adapterFunc string
 				switch eventSig.ArgsType {
@@ -1611,6 +1649,23 @@ func generateNodeCode(n *html.Node, receiver string, componentMap map[string]com
 				return fmt.Sprintf("vdom.NewVNode(%s, %s, %s, \"\")", strconv.Quote(tagName), attrsMapStr, strings.TrimSuffix(childrenStr, "..."))
 			} else {
 				if childrenStr == "" {
+					return fmt.Sprintf("vdom.NewVNode(%s, %s, nil, \"\")", strconv.Quote(tagName), attrsMapStr)
+				}
+				return fmt.Sprintf("vdom.NewVNode(%s, %s, []*vdom.VNode{%s}, \"\")", strconv.Quote(tagName), attrsMapStr, childrenStr)
+			}
+		case "nav", "a", "span", "section", "article", "header", "footer", "main", "aside":
+			// Handle semantic HTML5 elements and inline elements with children
+			if hasForLoop || hasSlotSpread {
+				return fmt.Sprintf("vdom.NewVNode(%s, %s, %s, \"\")", strconv.Quote(tagName), attrsMapStr, strings.TrimSuffix(childrenStr, "..."))
+			} else {
+				if childrenStr == "" {
+					// Check if there's text content
+					textContent := ""
+					if n.FirstChild != nil && n.FirstChild.Type == html.TextNode {
+						lineNum := estimateLineNumber(htmlSource, n.FirstChild.Data)
+						textContent = generateTextExpression(n.FirstChild.Data, receiver, currentComp, htmlSource, lineNum, loopCtx)
+						return fmt.Sprintf("vdom.NewVNode(%s, %s, nil, %s)", strconv.Quote(tagName), attrsMapStr, textContent)
+					}
 					return fmt.Sprintf("vdom.NewVNode(%s, %s, nil, \"\")", strconv.Quote(tagName), attrsMapStr)
 				}
 				return fmt.Sprintf("vdom.NewVNode(%s, %s, []*vdom.VNode{%s}, \"\")", strconv.Quote(tagName), attrsMapStr, childrenStr)

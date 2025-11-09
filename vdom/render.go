@@ -367,6 +367,32 @@ func createElement(n *VNode) js.Value {
 
 		return el
 
+	case "a", "nav", "span", "section", "article", "header", "footer", "main", "aside":
+		// Handle semantic HTML5 elements and inline elements
+		el := doc.Call("createElement", n.Tag)
+
+		if n.Attributes != nil {
+			for k, v := range n.Attributes {
+				setAttributeValue(el, k, v)
+			}
+			attachEventListeners(el, n.Attributes)
+		}
+
+		if n.Content != "" {
+			el.Set("textContent", n.Content)
+		}
+
+		if n.Children != nil {
+			for _, child := range n.Children {
+				childEl := createElement(child)
+				if childEl.Truthy() {
+					el.Call("appendChild", childEl)
+				}
+			}
+		}
+
+		return el
+
 	default:
 		console.Error("Unsupported tag: ", n.Tag)
 		return js.Undefined()
@@ -423,6 +449,37 @@ func patchElement(domElement js.Value, oldVNode, newVNode *VNode) {
 	// Same tag - update attributes
 	patchAttributes(domElement, oldVNode.Attributes, newVNode.Attributes)
 
+	// Handle event listeners separately
+	// Check if new VNode has any event handlers (can't compare functions directly)
+	hasEventHandlers := false
+	if newVNode.Attributes != nil {
+		for key := range newVNode.Attributes {
+			if len(key) > 2 && key[0] == 'o' && key[1] == 'n' {
+				hasEventHandlers = true
+				break
+			}
+		}
+	}
+
+	// If there are event handlers, we need to ensure clean attachment
+	// The safest approach: clone the element to remove all old listeners
+	if hasEventHandlers {
+		cloned := domElement.Call("cloneNode", false)
+
+		// Replace in parent
+		parent := domElement.Get("parentNode")
+		if parent.Truthy() {
+			parent.Call("replaceChild", cloned, domElement)
+		}
+
+		// Attach new listeners to cloned element
+		attachEventListeners(cloned, newVNode.Attributes)
+
+		// Update the domElement reference to point to the cloned element
+		// so the rest of the patching logic works correctly
+		domElement = cloned
+	}
+
 	// Update content for input/textarea elements
 	if newVNode.Tag == "input" || newVNode.Tag == "textarea" {
 		// Only update value if element is NOT currently focused
@@ -448,9 +505,7 @@ func patchElement(domElement js.Value, oldVNode, newVNode *VNode) {
 
 	// Patch children
 	patchChildren(domElement, oldVNode.Children, newVNode.Children)
-}
-
-// patchAttributes updates the attributes of a DOM element.
+} // patchAttributes updates the attributes of a DOM element.
 func patchAttributes(domElement js.Value, oldAttrs, newAttrs map[string]any) {
 	// Remove old attributes that are not in new attributes
 	if oldAttrs != nil {

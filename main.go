@@ -4,22 +4,51 @@
 package main
 
 import (
-	"github.com/vcrobe/nojs/appcomponents" // Assuming components are in this package
+	"github.com/vcrobe/nojs/appcomponents"
+	"github.com/vcrobe/nojs/router"
 	"github.com/vcrobe/nojs/runtime"
 )
 
 func main() {
-	// The user creates the root component instance.
-	// The generated .gt.go files for the 'appcomponents' package
-	// must be compiled as part of the main application.
-	app := appcomponents.App{}
+	// 1. Create the Router with path-based mode (clean URLs)
+	// For hash-based routing (e.g., #/about), use:
+	//   appRouter := router.New(&router.Config{Mode: router.HashMode})
+	appRouter := router.New(&router.Config{Mode: router.PathMode})
 
-	// Create the runtime renderer, passing it the root component.
-	renderer := runtime.NewRenderer(&app, "#app")
+	// 2. Define routes - map paths to component factories
+	appRouter.Handle("/", func(params map[string]string) runtime.Component {
+		return &appcomponents.HomePage{}
+	})
 
-	// Tell the renderer to perform the initial render.
-	renderer.RenderRoot()
+	appRouter.Handle("/about", func(params map[string]string) runtime.Component {
+		return &appcomponents.AboutPage{}
+	})
 
-	// Keep the Go program running.
+	appRouter.Handle("/blog/{year}", func(params map[string]string) runtime.Component {
+		return &appcomponents.BlogPage{Year: params["year"]}
+	})
+
+	// Optional: Handle 404 cases
+	// appRouter.HandleNotFound(func(params map[string]string) runtime.Component {
+	//     return &appcomponents.NotFoundPage{}
+	// })
+
+	// 3. Create the Renderer, passing the router as the NavigationManager
+	renderer := runtime.NewRenderer(appRouter, "#app")
+
+	// 4. Define the callback that the router will call when navigation occurs
+	onRouteChange := func(newComponent runtime.Component) {
+		// Tell the renderer which component to render
+		renderer.SetCurrentComponent(newComponent)
+		// Trigger the actual render
+		renderer.ReRender()
+	}
+
+	// 5. Start the Router explicitly - this reads the initial URL and triggers first render
+	if err := appRouter.Start(onRouteChange); err != nil {
+		panic("Error starting router: " + err.Error())
+	}
+
+	// Keep the Go program running
 	select {}
 }

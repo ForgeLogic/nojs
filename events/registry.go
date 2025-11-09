@@ -26,9 +26,10 @@ var EventRegistry = map[string]EventSignature{
 	// Phase 1: Core events (MVP)
 	"onclick": {
 		EventName:     "onclick",
-		SupportedTags: []string{"button", "a", "div", "span", "p", "img"},
-		ExpectedSig:   "func()",
-		RequiresArgs:  false,
+		SupportedTags: []string{"button", "a", "div", "span", "p", "img", "li", "td", "th"},
+		ExpectedSig:   "func() or func(events.ClickEventArgs)",
+		RequiresArgs:  false, // Can be either func() or func(ClickEventArgs)
+		ArgsType:      "events.ClickEventArgs",
 	},
 	"oninput": {
 		EventName:     "oninput",
