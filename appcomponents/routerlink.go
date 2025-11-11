@@ -8,7 +8,7 @@ import (
 	"github.com/vcrobe/nojs/vdom"
 )
 
-// Link is a universal component for client-side navigation.
+// RouterLink is a component for client-side navigation.
 // It renders an <a> tag that uses the router for navigation without page reloads.
 //
 // Props:
@@ -17,10 +17,10 @@ import (
 //
 // Example usage in a template:
 //
-//	<Link Href="/about">
+//	<RouterLink Href="/about">
 //	    <span>Go to About Page</span>
-//	</Link>
-type Link struct {
+//	</RouterLink>
+type RouterLink struct {
 	runtime.ComponentBase
 
 	// Href is the destination path for navigation
@@ -32,12 +32,12 @@ type Link struct {
 
 // HandleClick is called when the link is clicked.
 // It prevents the default browser navigation and uses the router instead.
-func (c *Link) HandleClick(e events.ClickEventArgs) {
+func (c *RouterLink) HandleClick(e events.ClickEventArgs) {
 	// Prevent the browser from navigating (which would reload the page)
 	e.PreventDefault()
 
 	// Use the framework's client-side router to navigate
 	if err := c.Navigate(c.Href); err != nil {
-		println("[Link] Navigation error:", err.Error())
+		println("[RouterLink] Navigation error:", err.Error())
 	}
 }

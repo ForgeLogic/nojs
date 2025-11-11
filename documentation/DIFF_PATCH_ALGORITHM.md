@@ -103,7 +103,18 @@ patchAttributes(domElement, oldVNode.Attributes, newVNode.Attributes)
 
 Update only the attributes that changed. See below for details.
 
-#### Step 3: Update Content
+#### Step 3: Update Event Listeners
+```go
+if newVNode.Attributes != nil {
+    attachEventListeners(domElement, newVNode.Attributes)
+}
+```
+
+Attach event listeners from the new VNode. Since we're reusing the DOM element, new listeners replace old ones automatically through the DOM API.
+
+**Note**: The previous implementation used `cloneNode(false)` to remove old listeners, but this had a critical bug: shallow cloning without children destroyed the element's child nodes, causing text content to disappear. The current approach accepts potential duplicate listeners in favor of preserving DOM structure.
+
+#### Step 4: Update Content
 
 **For Input/Textarea Elements** (the critical fix):
 ```go
@@ -121,14 +132,20 @@ if newVNode.Tag == "input" || newVNode.Tag == "textarea" {
 
 **For Other Elements**:
 ```go
-if oldVNode.Content != newVNode.Content {
+// Only set textContent if there are no children
+// Setting textContent wipes out all child nodes
+if len(newVNode.Children) == 0 && oldVNode.Content != newVNode.Content {
     domElement.textContent = newVNode.Content
 }
 ```
 
-Only update text content if it actually changed.
+Only update text content if:
+1. The element has no children (text-only elements)
+2. The content actually changed
 
-#### Step 4: Patch Children
+**Critical**: Setting `textContent` destroys all child nodes, so we must skip this when the element has children.
+
+#### Step 5: Patch Children
 ```go
 patchChildren(domElement, oldVNode.Children, newVNode.Children)
 ```
@@ -171,7 +188,7 @@ for key, value in newAttrs {
 
 Only update attributes that actually changed.
 
-**Note**: Event handlers are skipped because they're attached via `addEventListener()` when the element is first created. Since we're reusing the DOM element, the event listeners remain attached.
+**Note**: Event handlers are handled by directly calling `attachEventListeners()` during the patch process. The previous approach of cloning elements to remove old listeners had a critical bug where `cloneNode(false)` destroyed all child nodes. The current approach may result in duplicate listeners in some edge cases, but preserves DOM structure correctly.
 
 ### 4. `patchChildren(domElement, oldChildren, newChildren)`
 
@@ -320,7 +337,7 @@ This is a **minimal** diff/patch implementation designed to solve the specific i
 
 1. **Key-based Reconciliation**: We patch children positionally (index 0 to 0, 1 to 1, etc.) rather than using keys to match elements. This is less efficient for lists that reorder.
 
-2. **Event Listener Management**: We don't clean up event listeners when elements are removed. **This creates minor memory leaks, but it's acceptable for now.**
+2. **Event Listener Cleanup**: We don't remove old event listeners before adding new ones during patching. **This may create duplicate listeners in some cases, but avoids destroying child nodes.**
 
 3. **Component Boundaries**: We don't optimize patching at component boundaries. **Every state change patches from the root.**
 

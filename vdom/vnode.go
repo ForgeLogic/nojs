@@ -37,6 +37,16 @@ func (v *VNode) SetContent(content string) {
 	v.Content = content
 }
 
+// Text creates a pure text node VNode (no HTML element wrapper).
+// This uses the special "#text" tag which renders as document.createTextNode() in the browser.
+// Use this for creating text content without any surrounding HTML element.
+func Text(content string) *VNode {
+	return &VNode{
+		Tag:     "#text",
+		Content: content,
+	}
+}
+
 // Paragraph creates a <p> VNode with the given text as its child and allows passing attributes.
 func Paragraph(text string, attrs map[string]any) *VNode {
 	return NewVNode("p", attrs, nil, text)

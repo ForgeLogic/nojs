@@ -106,6 +106,91 @@ var standardBooleanAttrs = map[string]bool{
 	"formnovalidate": true,
 }
 
+// problematicHTMLTags lists HTML tags that conflict with component names.
+// The Go html parser treats these case-insensitively and applies HTML5 semantics
+// (e.g., <link> becomes self-closing and moves to <head>).
+// Component names matching these will cause parsing issues.
+var problematicHTMLTags = map[string]bool{
+	// Void/self-closing elements (no children allowed)
+	"area":   true,
+	"base":   true,
+	"br":     true,
+	"col":    true,
+	"embed":  true,
+	"hr":     true,
+	"img":    true,
+	"input":  true,
+	"link":   true, // Common conflict: Link component
+	"meta":   true,
+	"param":  true,
+	"source": true,
+	"track":  true,
+	"wbr":    true,
+
+	// Elements with special parsing rules
+	"script":   true,
+	"style":    true,
+	"title":    true,
+	"textarea": true,
+	"select":   true,
+	"option":   true,
+	"optgroup": true,
+	"template": true,
+	"iframe":   true,
+	"object":   true,
+	"canvas":   true,
+	"audio":    true,
+	"video":    true,
+	"form":     true, // Common conflict: Form component
+	"button":   true, // Common conflict: Button component
+	"label":    true,
+	"fieldset": true,
+	"legend":   true,
+	"table":    true,
+	"thead":    true,
+	"tbody":    true,
+	"tfoot":    true,
+	"tr":       true,
+	"td":       true,
+	"th":       true,
+	"caption":  true,
+	"colgroup": true,
+
+	// Commonly used semantic elements that could conflict
+	"main":    true,
+	"nav":     true,
+	"header":  true,
+	"footer":  true,
+	"section": true,
+	"article": true,
+	"aside":   true,
+	"details": true,
+	"summary": true,
+	"dialog":  true,
+	"menu":    true,
+
+	// Other potentially problematic tags
+	"html": true,
+	"head": true,
+	"body": true,
+	"div":  true,
+	"span": true,
+	"a":    true,
+	"p":    true,
+	"h1":   true,
+	"h2":   true,
+	"h3":   true,
+	"h4":   true,
+	"h5":   true,
+	"h6":   true,
+	"ul":   true,
+	"ol":   true,
+	"li":   true,
+	"dl":   true,
+	"dt":   true,
+	"dd":   true,
+}
+
 // preprocessFor preprocesses template source to extract for-loop blocks and replace them with placeholder nodes.
 // It validates that every {@for} has a matching {@endfor} and that trackBy is specified.
 // Syntax: {@for index, value := range SliceName trackBy uniqueKeyExpression}{@endfor}
@@ -291,6 +376,32 @@ func estimateLineNumber(htmlSource, text string) int {
 	}
 
 	return 1 // Default to line 1 if not found
+}
+
+// validateComponentName checks if a component name conflicts with HTML tags.
+// The Go html.Parse treats tags case-insensitively and applies HTML5 semantics,
+// which can cause components to be misparsed (e.g., <Link> becomes self-closing <link>).
+func validateComponentName(componentName, templatePath string) error {
+	lowerName := strings.ToLower(componentName)
+	if problematicHTMLTags[lowerName] {
+		return fmt.Errorf(
+			"Compilation Error: Component name '%s' in %s conflicts with HTML tag '<%s>'.\n"+
+				"\n"+
+				"The Go html.Parse library treats component names case-insensitively and applies HTML5 parsing rules.\n"+
+				"This causes issues like:\n"+
+				"  - <Link> is parsed as <link> (self-closing, no children allowed)\n"+
+				"  - <Form> is parsed as <form> (special form parsing rules)\n"+
+				"  - <Button> is parsed as <button> (special nesting restrictions)\n"+
+				"\n"+
+				"Suggested alternatives:\n"+
+				"  - Link → RouterLink, NavLink, or AppLink\n"+
+				"  - Form → DataForm or AppForm\n"+
+				"  - Button → ActionButton or CustomButton\n"+
+				"\n"+
+				"Use PascalCase names that don't match HTML tags (case-insensitive).",
+			componentName, templatePath, lowerName)
+	}
+	return nil
 }
 
 // isBooleanAttribute checks if an attribute name is a standard HTML boolean attribute.
@@ -529,6 +640,11 @@ func discoverAndInspectComponents(rootDir string) ([]componentInfo, error) {
 				PackageName:   pkg.Name, // Use the package name from the loader.
 				Schema:        schema,
 			})
+
+			// Validate that component name doesn't conflict with HTML tags
+			if err := validateComponentName(pascalName, templatePath); err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -961,18 +1077,11 @@ func generateAttributesMap(n *html.Node, receiver string, currentComp componentI
 				}
 			}
 
-			// Pattern 1: Boolean attribute shorthand {condition} or {!condition}
-			if match := booleanShorthandRegex.FindStringSubmatch(attrValue); match != nil {
+			// Pattern 1: Check for boolean shorthand syntax for boolean attributes
+			// This must come BEFORE general data binding to handle boolean attributes correctly
+			if match := booleanShorthandRegex.FindStringSubmatch(attrValue); match != nil && isBooleanAttribute(a.Key) {
 				negated := match[1] == "!"
 				condition := match[2]
-
-				// Only allow boolean shorthand for standard boolean attributes
-				if !isBooleanAttribute(a.Key) {
-					contextLines := getContextLines(htmlSource, lineNum, 2)
-					fmt.Fprintf(os.Stderr, "Compilation Error in %s:%d: Boolean shorthand syntax can only be used with standard HTML boolean attributes. For attribute '%s', use the full ternary expression: {%s ? 'true' : 'false'}\n%s",
-						currentComp.Path, lineNum, a.Key, condition, contextLines)
-					os.Exit(1)
-				}
 
 				// Validate condition is a boolean field
 				propDesc := validateBooleanCondition(condition, currentComp, currentComp.Path, lineNum, htmlSource)
@@ -1032,7 +1141,60 @@ func generateAttributesMap(n *html.Node, receiver string, currentComp componentI
 				continue
 			}
 
-			// Pattern 3: Regular static attribute
+			// Pattern 3: Regular data binding in attribute values (e.g., {FieldName})
+			// This handles simple property interpolation for non-boolean attributes
+			matches := dataBindingRegex.FindAllStringSubmatch(attrValue, -1)
+			if len(matches) > 0 {
+				// Check if the entire value is a single data binding (e.g., href='{Href}')
+				if len(matches) == 1 && matches[0][0] == attrValue {
+					fieldName := matches[0][1]
+
+					// Validate that the field exists (check both Props and State)
+					propDesc, exists := currentComp.Schema.Props[strings.ToLower(fieldName)]
+					if !exists {
+						propDesc, exists = currentComp.Schema.State[strings.ToLower(fieldName)]
+					}
+					if !exists {
+						allFields := append(getAvailableFieldNames(currentComp.Schema.Props), getAvailableFieldNames(currentComp.Schema.State)...)
+						availableFields := strings.Join(allFields, ", ")
+						contextLines := getContextLines(htmlSource, lineNum, 2)
+						fmt.Fprintf(os.Stderr, "Compilation Error in %s:%d: Property '%s' not found in component struct. Available fields: [%s]\n%s",
+							currentComp.Path, lineNum, fieldName, availableFields, contextLines)
+						os.Exit(1)
+					}
+
+					// Generate direct field reference
+					attrs = append(attrs, fmt.Sprintf(`"%s": %s.%s`, a.Key, receiver, propDesc.Name))
+					continue
+				}
+
+				// Multiple bindings or mixed content (e.g., '{Base}/{Path}')
+				formatString := dataBindingRegex.ReplaceAllString(attrValue, "%v")
+				var args []string
+				for _, match := range matches {
+					fieldName := match[1]
+
+					// Validate that the field exists (check both Props and State)
+					propDesc, exists := currentComp.Schema.Props[strings.ToLower(fieldName)]
+					if !exists {
+						propDesc, exists = currentComp.Schema.State[strings.ToLower(fieldName)]
+					}
+					if !exists {
+						allFields := append(getAvailableFieldNames(currentComp.Schema.Props), getAvailableFieldNames(currentComp.Schema.State)...)
+						availableFields := strings.Join(allFields, ", ")
+						contextLines := getContextLines(htmlSource, lineNum, 2)
+						fmt.Fprintf(os.Stderr, "Compilation Error in %s:%d: Property '%s' not found in component struct. Available fields: [%s]\n%s",
+							currentComp.Path, lineNum, fieldName, availableFields, contextLines)
+						os.Exit(1)
+					}
+
+					args = append(args, fmt.Sprintf("%s.%s", receiver, propDesc.Name))
+				}
+				attrs = append(attrs, fmt.Sprintf(`"%s": fmt.Sprintf(%s, %s)`, a.Key, strconv.Quote(formatString), strings.Join(args, ", ")))
+				continue
+			}
+
+			// Pattern 4: Regular static attribute
 			attrs = append(attrs, fmt.Sprintf(`"%s": "%s"`, a.Key, a.Val))
 		}
 	}
@@ -1444,9 +1606,13 @@ func generateNodeCode(n *html.Node, receiver string, componentMap map[string]com
 		if content == "" {
 			return ""
 		}
-		// In a real scenario, you'd handle text content more robustly.
-		// For now, we assume text is primarily for simple elements like <p>.
-		return ""
+
+		// Generate the text expression (handles data binding, ternaries, static text, etc.)
+		lineNum := estimateTextNodeLineNumber(htmlSource, n.Data)
+		textExpr := generateTextExpression(content, receiver, currentComp, htmlSource, lineNum, loopCtx)
+
+		// Wrap in vdom.Text() call to create a proper text VNode
+		return fmt.Sprintf("vdom.Text(%s)", textExpr)
 	}
 
 	if n.Type == html.ElementNode {
@@ -2100,22 +2266,16 @@ func generateSlotTextNodeError(
 // Validates that slot content does not contain unwrapped text nodes.
 func collectSlotChildren(n *html.Node, receiver string, componentMap map[string]componentInfo, currentComp componentInfo, componentName string, templatePath string, htmlSource string, opts compileOptions, loopCtx *loopContext) string {
 	var childrenCode []string
-	var unwrappedTextNodes []textNodePosition
 
-	// First pass: collect children and detect unwrapped text nodes
+	// Collect all children (elements and text nodes)
 	for c := n.FirstChild; c != nil; c = c.NextSibling {
 		if c.Type == html.TextNode {
 			// Check if this is meaningful text (not just whitespace)
 			trimmed := strings.TrimSpace(c.Data)
 			if trimmed != "" {
-				// Found unwrapped text node
-				lineNum := estimateTextNodeLineNumber(htmlSource, c.Data)
-				colNum := 1 // Column estimation would require more complex parsing
-				unwrappedTextNodes = append(unwrappedTextNodes, textNodePosition{
-					lineNum:     lineNum,
-					colNum:      colNum,
-					textContent: trimmed,
-				})
+				// Convert text node to pure text VNode using vdom.Text()
+				textExpr := generateTextExpression(trimmed, receiver, currentComp, htmlSource, estimateTextNodeLineNumber(htmlSource, c.Data), loopCtx)
+				childrenCode = append(childrenCode, fmt.Sprintf(`vdom.Text(%s)`, textExpr))
 			}
 			// Skip whitespace-only text nodes
 			continue
@@ -2125,14 +2285,6 @@ func collectSlotChildren(n *html.Node, receiver string, componentMap map[string]
 		if childCode != "" {
 			childrenCode = append(childrenCode, childCode)
 		}
-	}
-
-	// If we found unwrapped text nodes, generate error
-	if len(unwrappedTextNodes) > 0 {
-		// Get accurate component tag line number
-		componentTagLine := estimateComponentTagLineNumber(htmlSource, n, componentName)
-		generateSlotTextNodeError(componentName, templatePath, htmlSource, unwrappedTextNodes, componentTagLine)
-		// Note: generateSlotTextNodeError calls os.Exit(1), so we never reach here
 	}
 
 	if len(childrenCode) == 0 {

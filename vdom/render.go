@@ -126,6 +126,17 @@ func createElement(n *VNode) js.Value {
 	}
 
 	switch n.Tag {
+	case "#text":
+		// Pure text node - no HTML element wrapper
+		if n.Content == "" {
+			console.Log("[DEBUG] Text node with empty content, returning undefined")
+			return js.Undefined()
+		}
+		console.Log("[DEBUG] Creating text node with content:", n.Content)
+		textNode := doc.Call("createTextNode", n.Content)
+		console.Log("[DEBUG] Text node created, truthy:", textNode.Truthy())
+		return textNode
+
 	case "p":
 		el := doc.Call("createElement", "p")
 
@@ -383,12 +394,20 @@ func createElement(n *VNode) js.Value {
 		}
 
 		if n.Children != nil {
-			for _, child := range n.Children {
+			console.Log("[DEBUG]", n.Tag, "has", len(n.Children), "children")
+			for i, child := range n.Children {
+				console.Log("[DEBUG] Processing child", i, "tag:", child.Tag, "content:", child.Content)
 				childEl := createElement(child)
+				console.Log("[DEBUG] Child element created, truthy:", childEl.Truthy())
 				if childEl.Truthy() {
 					el.Call("appendChild", childEl)
+					console.Log("[DEBUG] Child appended to", n.Tag)
+				} else {
+					console.Log("[DEBUG] Child element was not truthy, skipped")
 				}
 			}
+		} else {
+			console.Log("[DEBUG]", n.Tag, "has no children (nil)")
 		}
 
 		return el
@@ -401,6 +420,9 @@ func createElement(n *VNode) js.Value {
 
 // Patch updates the DOM by comparing old and new VDOM trees and applying minimal changes.
 func Patch(mountSelector string, oldVNode, newVNode *VNode) {
+	console.Log("[DEBUG] Patch called for selector:", mountSelector)
+	console.Log("[DEBUG] oldVNode tag:", oldVNode.Tag, "newVNode tag:", newVNode.Tag)
+
 	if oldVNode == nil || newVNode == nil {
 		return
 	}
@@ -420,10 +442,12 @@ func Patch(mountSelector string, oldVNode, newVNode *VNode) {
 	rootElement := mount.Get("firstChild")
 	if !rootElement.Truthy() {
 		// No existing DOM, just render fresh
+		console.Log("[DEBUG] No existing DOM, rendering fresh")
 		RenderToSelector(mountSelector, newVNode)
 		return
 	}
 
+	console.Log("[DEBUG] Patching existing DOM element")
 	// Patch the root element
 	patchElement(rootElement, oldVNode, newVNode)
 }
@@ -449,35 +473,13 @@ func patchElement(domElement js.Value, oldVNode, newVNode *VNode) {
 	// Same tag - update attributes
 	patchAttributes(domElement, oldVNode.Attributes, newVNode.Attributes)
 
-	// Handle event listeners separately
-	// Check if new VNode has any event handlers (can't compare functions directly)
-	hasEventHandlers := false
+	// Update event listeners
+	// For patching, we need to remove old listeners and add new ones
+	// Note: We can't perfectly remove JS event listeners without tracking them,
+	// but we can at least attach the new ones. In practice, the onclick attribute
+	// approach means setting a new handler replaces the old one automatically.
 	if newVNode.Attributes != nil {
-		for key := range newVNode.Attributes {
-			if len(key) > 2 && key[0] == 'o' && key[1] == 'n' {
-				hasEventHandlers = true
-				break
-			}
-		}
-	}
-
-	// If there are event handlers, we need to ensure clean attachment
-	// The safest approach: clone the element to remove all old listeners
-	if hasEventHandlers {
-		cloned := domElement.Call("cloneNode", false)
-
-		// Replace in parent
-		parent := domElement.Get("parentNode")
-		if parent.Truthy() {
-			parent.Call("replaceChild", cloned, domElement)
-		}
-
-		// Attach new listeners to cloned element
-		attachEventListeners(cloned, newVNode.Attributes)
-
-		// Update the domElement reference to point to the cloned element
-		// so the rest of the patching logic works correctly
-		domElement = cloned
+		attachEventListeners(domElement, newVNode.Attributes)
 	}
 
 	// Update content for input/textarea elements
@@ -497,13 +499,18 @@ func patchElement(domElement js.Value, oldVNode, newVNode *VNode) {
 			domElement.Set("value", newVNode.Content)
 		}
 	} else {
-		// Update text content for other elements
-		if oldVNode.Content != newVNode.Content {
+		// Update text content for other elements ONLY if there are no children
+		// Setting textContent wipes out all child nodes, so we must check first
+		if len(newVNode.Children) == 0 && oldVNode.Content != newVNode.Content {
+			console.Log("[DEBUG] Setting textContent to:", newVNode.Content)
 			domElement.Set("textContent", newVNode.Content)
+		} else if len(newVNode.Children) > 0 {
+			console.Log("[DEBUG] Element has", len(newVNode.Children), "children, skipping textContent")
 		}
 	}
 
 	// Patch children
+	console.Log("[DEBUG] Patching children: old count:", len(oldVNode.Children), "new count:", len(newVNode.Children))
 	patchChildren(domElement, oldVNode.Children, newVNode.Children)
 } // patchAttributes updates the attributes of a DOM element.
 func patchAttributes(domElement js.Value, oldAttrs, newAttrs map[string]any) {
@@ -547,10 +554,12 @@ func patchChildren(domElement js.Value, oldChildren, newChildren []*VNode) {
 
 	// Get the DOM children
 	domChildren := domElement.Get("childNodes")
+	console.Log("[DEBUG] patchChildren: DOM has", domChildren.Get("length").Int(), "child nodes")
 
 	// Patch existing children
 	for i := 0; i < minLen; i++ {
 		childElement := domChildren.Call("item", i)
+		console.Log("[DEBUG] Patching child", i, "oldTag:", oldChildren[i].Tag, "newTag:", newChildren[i].Tag)
 		if childElement.Truthy() {
 			patchElement(childElement, oldChildren[i], newChildren[i])
 		}
