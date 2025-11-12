@@ -9,9 +9,42 @@ import (
 	"github.com/vcrobe/nojs/console"
 )
 
-func Clear(selector string) {
+// releaseCallbacks releases all js.Func objects stored in a VNode.
+func releaseCallbacks(v *VNode) {
+	if v == nil {
+		return
+	}
+
+	callbacks := v.GetEventCallbacks()
+	for _, cb := range callbacks {
+		if jsFunc, ok := cb.(js.Func); ok {
+			jsFunc.Release()
+		}
+	}
+	v.ClearEventCallbacks()
+}
+
+// deepReleaseCallbacks recursively releases all callbacks in the entire VNode tree.
+func deepReleaseCallbacks(v *VNode) {
+	if v == nil {
+		return
+	}
+
+	releaseCallbacks(v)
+
+	for _, child := range v.Children {
+		deepReleaseCallbacks(child)
+	}
+}
+
+func Clear(selector string, prevVDOM *VNode) {
 	if selector == "" {
 		return
+	}
+
+	// Release all callbacks in the previous VDOM tree
+	if prevVDOM != nil {
+		deepReleaseCallbacks(prevVDOM)
 	}
 
 	doc := js.Global().Get("document")
@@ -88,7 +121,8 @@ func setAttributeValue(el js.Value, key string, value any) {
 
 // attachEventListeners processes attributes and attaches event listeners for event handlers.
 // Event attributes start with "on" (e.g., onClick, onInput, onMousedown).
-func attachEventListeners(el js.Value, attributes map[string]any) {
+// The VNode parameter is used to store js.Func objects for later cleanup.
+func attachEventListeners(el js.Value, vnode *VNode, attributes map[string]any) {
 	if attributes == nil {
 		return
 	}
@@ -113,7 +147,11 @@ func attachEventListeners(el js.Value, attributes map[string]any) {
 				})
 
 				el.Call("addEventListener", eventName, cb)
-				// TODO: Store cb somewhere to release later if needed
+
+				// Store the callback in VNode for later cleanup
+				if vnode != nil {
+					vnode.AddEventCallback(cb)
+				}
 			}
 		}
 	}
@@ -148,7 +186,7 @@ func createElement(n *VNode) js.Value {
 			for k, v := range n.Attributes {
 				setAttributeValue(el, k, v)
 			}
-			attachEventListeners(el, n.Attributes)
+			attachEventListeners(el, n, n.Attributes)
 		}
 
 		// children ignored for now
@@ -160,7 +198,7 @@ func createElement(n *VNode) js.Value {
 			for k, v := range n.Attributes {
 				setAttributeValue(el, k, v)
 			}
-			attachEventListeners(el, n.Attributes)
+			attachEventListeners(el, n, n.Attributes)
 		}
 
 		if n.Content != "" {
@@ -184,7 +222,7 @@ func createElement(n *VNode) js.Value {
 			for k, v := range n.Attributes {
 				setAttributeValue(el, k, v)
 			}
-			attachEventListeners(el, n.Attributes)
+			attachEventListeners(el, n, n.Attributes)
 		}
 
 		// For text input, set value if provided in Content
@@ -200,7 +238,7 @@ func createElement(n *VNode) js.Value {
 			for k, v := range n.Attributes {
 				setAttributeValue(el, k, v)
 			}
-			attachEventListeners(el, n.Attributes)
+			attachEventListeners(el, n, n.Attributes)
 		}
 
 		if n.Content != "" {
@@ -221,7 +259,8 @@ func createElement(n *VNode) js.Value {
 				return nil
 			})
 			el.Call("addEventListener", "click", cb)
-			// Optionally store cb somewhere to release later if needed
+			// Store callback for cleanup
+			n.AddEventCallback(cb)
 		}
 
 		return el
@@ -234,7 +273,7 @@ func createElement(n *VNode) js.Value {
 			for k, v := range n.Attributes {
 				setAttributeValue(el, k, v)
 			}
-			attachEventListeners(el, n.Attributes)
+			attachEventListeners(el, n, n.Attributes)
 		}
 
 		if n.Content != "" {
@@ -260,7 +299,7 @@ func createElement(n *VNode) js.Value {
 			for k, v := range n.Attributes {
 				setAttributeValue(el, k, v)
 			}
-			attachEventListeners(el, n.Attributes)
+			attachEventListeners(el, n, n.Attributes)
 		}
 
 		if n.Children != nil {
@@ -282,7 +321,7 @@ func createElement(n *VNode) js.Value {
 			for k, v := range n.Attributes {
 				setAttributeValue(el, k, v)
 			}
-			attachEventListeners(el, n.Attributes)
+			attachEventListeners(el, n, n.Attributes)
 		}
 
 		if n.Content != "" {
@@ -308,7 +347,7 @@ func createElement(n *VNode) js.Value {
 			for k, v := range n.Attributes {
 				setAttributeValue(el, k, v)
 			}
-			attachEventListeners(el, n.Attributes)
+			attachEventListeners(el, n, n.Attributes)
 		}
 
 		if n.Children != nil {
@@ -330,7 +369,7 @@ func createElement(n *VNode) js.Value {
 			for k, v := range n.Attributes {
 				setAttributeValue(el, k, v)
 			}
-			attachEventListeners(el, n.Attributes)
+			attachEventListeners(el, n, n.Attributes)
 		}
 
 		if n.Content != "" {
@@ -347,7 +386,7 @@ func createElement(n *VNode) js.Value {
 			for k, v := range n.Attributes {
 				setAttributeValue(el, k, v)
 			}
-			attachEventListeners(el, n.Attributes)
+			attachEventListeners(el, n, n.Attributes)
 		}
 
 		if n.Content != "" {
@@ -364,7 +403,7 @@ func createElement(n *VNode) js.Value {
 			for k, v := range n.Attributes {
 				setAttributeValue(el, k, v)
 			}
-			attachEventListeners(el, n.Attributes)
+			attachEventListeners(el, n, n.Attributes)
 		}
 
 		if n.Children != nil {
@@ -386,7 +425,7 @@ func createElement(n *VNode) js.Value {
 			for k, v := range n.Attributes {
 				setAttributeValue(el, k, v)
 			}
-			attachEventListeners(el, n.Attributes)
+			attachEventListeners(el, n, n.Attributes)
 		}
 
 		if n.Content != "" {
@@ -458,8 +497,27 @@ func patchElement(domElement js.Value, oldVNode, newVNode *VNode) {
 		return
 	}
 
+	// Check if component keys differ (for router navigation)
+	if oldVNode.ComponentKey != "" && newVNode.ComponentKey != "" && oldVNode.ComponentKey != newVNode.ComponentKey {
+		// Keys are different - replace entire subtree
+		console.Log("[DEBUG] Component keys differ, replacing entire tree. Old:", oldVNode.ComponentKey, "New:", newVNode.ComponentKey)
+		deepReleaseCallbacks(oldVNode)
+
+		newElement := createElement(newVNode)
+		if newElement.Truthy() {
+			parent := domElement.Get("parentNode")
+			if parent.Truthy() {
+				parent.Call("replaceChild", newElement, domElement)
+			}
+		}
+		return
+	}
+
 	// If tags are different, replace the entire element
 	if oldVNode.Tag != newVNode.Tag {
+		// Release callbacks before replacing
+		deepReleaseCallbacks(oldVNode)
+
 		newElement := createElement(newVNode)
 		if newElement.Truthy() {
 			parent := domElement.Get("parentNode")
@@ -474,12 +532,10 @@ func patchElement(domElement js.Value, oldVNode, newVNode *VNode) {
 	patchAttributes(domElement, oldVNode.Attributes, newVNode.Attributes)
 
 	// Update event listeners
-	// For patching, we need to remove old listeners and add new ones
-	// Note: We can't perfectly remove JS event listeners without tracking them,
-	// but we can at least attach the new ones. In practice, the onclick attribute
-	// approach means setting a new handler replaces the old one automatically.
+	// Release old callbacks and attach new ones
+	releaseCallbacks(oldVNode)
 	if newVNode.Attributes != nil {
-		attachEventListeners(domElement, newVNode.Attributes)
+		attachEventListeners(domElement, newVNode, newVNode.Attributes)
 	}
 
 	// Update content for input/textarea elements
@@ -578,6 +634,9 @@ func patchChildren(domElement js.Value, oldChildren, newChildren []*VNode) {
 	// Remove extra children if oldChildren is longer
 	if oldLen > newLen {
 		for i := oldLen - 1; i >= newLen; i-- {
+			// Release callbacks before removing
+			deepReleaseCallbacks(oldChildren[i])
+
 			childElement := domChildren.Call("item", i)
 			if childElement.Truthy() {
 				domElement.Call("removeChild", childElement)

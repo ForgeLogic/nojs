@@ -19,6 +19,7 @@ type RendererImpl struct {
 	initialized      map[string]bool   // Track which components have been initialized
 	activeKeys       map[string]bool   // Track which components are active in the current render
 	currentComponent Component         // The currently active root component (set by router or directly)
+	currentKey       string            // Key for component-level reconciliation (e.g., current route path)
 	navManager       NavigationManager // Optional: router for client-side navigation
 	mountID          string
 	prevVDOM         *vdom.VNode // Previous VDOM tree for patching
@@ -38,11 +39,14 @@ func NewRenderer(navManager NavigationManager, mountID string) *RendererImpl {
 	}
 }
 
-// SetCurrentComponent sets the component to be rendered.
+// SetCurrentComponent sets the component to be rendered with an optional key.
+// The key is used for component-level reconciliation (e.g., for router navigation).
+// When the key changes, the entire component tree is replaced instead of patched.
 // This is typically called by the router's onChange callback when navigation occurs.
-// For non-routed apps, it can be called directly with a static component.
-func (r *RendererImpl) SetCurrentComponent(comp Component) {
+// For non-routed apps, it can be called directly with a static component and empty key.
+func (r *RendererImpl) SetCurrentComponent(comp Component, key string) {
 	r.currentComponent = comp
+	r.currentKey = key
 }
 
 // RenderRoot starts the rendering process for the entire application.
@@ -72,13 +76,31 @@ func (r *RendererImpl) RenderRoot() {
 
 	newVDOM := r.currentComponent.Render(r)
 
+	// Attach the component key to the root VNode for reconciliation
+	newVDOM.ComponentKey = r.currentKey
+
 	if r.prevVDOM == nil {
 		// Initial render: clear and render fresh
-		vdom.Clear(r.mountID)
+		vdom.Clear(r.mountID, nil)
 		vdom.RenderToSelector(r.mountID, newVDOM)
 	} else {
-		// Subsequent renders: patch the existing DOM
-		vdom.Patch(r.mountID, r.prevVDOM, newVDOM)
+		// Check if component key changed (e.g., router navigation)
+		if r.prevVDOM.ComponentKey != newVDOM.ComponentKey {
+			// Component key changed - replace entire tree
+			vdom.Clear(r.mountID, r.prevVDOM)
+			vdom.RenderToSelector(r.mountID, newVDOM)
+
+			// Call OnDestroy on old root component
+			if cleaner, ok := r.currentComponent.(Cleaner); ok {
+				r.callOnDestroy(cleaner, "__root__")
+			}
+
+			// Reset initialization tracking for fresh component lifecycle
+			r.initialized = make(map[string]bool)
+		} else {
+			// Same key - patch normally
+			vdom.Patch(r.mountID, r.prevVDOM, newVDOM)
+		}
 	}
 
 	// Store the new VDOM tree for the next render cycle

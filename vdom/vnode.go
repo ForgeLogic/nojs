@@ -3,12 +3,14 @@ package vdom
 // VNode represents a virtual DOM node.
 // This core file has NO build tags, making it available to both WASM and native test builds.
 type VNode struct {
-	Tag        string         // The HTML tag name
-	Attributes map[string]any // The attributes of the node
-	Children   []*VNode       // The child nodes
-	Content    string         // The content of the node
-	OnClick    func()         // Optional click event handler
-	Key        any            // Optional key for list reconciliation (used in {@for} loops)
+	Tag            string         // The HTML tag name
+	Attributes     map[string]any // The attributes of the node
+	Children       []*VNode       // The child nodes
+	Content        string         // The content of the node
+	OnClick        func()         // Optional click event handler
+	Key            any            // Optional key for list reconciliation (used in {@for} loops)
+	ComponentKey   string         // Key for component-level reconciliation (used in router navigation)
+	eventCallbacks []any          // Stores js.Func objects for cleanup (interface{} to avoid build tag issues)
 }
 
 // NewVNode creates a new VNode.
@@ -70,4 +72,22 @@ func Div(attrs map[string]any, children ...*VNode) *VNode {
 // Button creates a <button> VNode with the given children and allows passing attributes.
 func Button(content string, attrs map[string]any, children ...*VNode) *VNode {
 	return NewVNode("button", attrs, children, content)
+}
+
+// AddEventCallback stores a js.Func (as interface{}) for later cleanup.
+// This is called from WASM-only code in render.go.
+func (v *VNode) AddEventCallback(cb any) {
+	v.eventCallbacks = append(v.eventCallbacks, cb)
+}
+
+// GetEventCallbacks returns all stored event callbacks.
+// This is used by WASM-only code to access the callbacks for cleanup.
+func (v *VNode) GetEventCallbacks() []any {
+	return v.eventCallbacks
+}
+
+// ClearEventCallbacks clears the event callbacks slice without releasing them.
+// The actual release is done in WASM-only code in render.go.
+func (v *VNode) ClearEventCallbacks() {
+	v.eventCallbacks = nil
 }

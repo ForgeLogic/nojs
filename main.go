@@ -37,9 +37,9 @@ func main() {
 	renderer := runtime.NewRenderer(appRouter, "#app")
 
 	// 4. Define the callback that the router will call when navigation occurs
-	onRouteChange := func(newComponent runtime.Component) {
-		// Tell the renderer which component to render
-		renderer.SetCurrentComponent(newComponent)
+	onRouteChange := func(newComponent runtime.Component, key string) {
+		// Tell the renderer which component to render with its key (path)
+		renderer.SetCurrentComponent(newComponent, key)
 		// Trigger the actual render
 		renderer.ReRender()
 	}

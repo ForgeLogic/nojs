@@ -14,8 +14,9 @@ type NavigationManager interface {
 	//
 	// The onChange callback is provided by the application (usually in main.go)
 	// and is responsible for updating the renderer's current component and
-	// triggering a re-render.
-	Start(onChange func(newComponent Component)) error
+	// triggering a re-render. The key parameter (typically the path) identifies
+	// the component uniquely for reconciliation purposes (e.g., for router navigation).
+	Start(onChange func(newComponent Component, key string)) error
 
 	// Navigate programmatically changes the browser URL using the History API
 	// (or hash navigation) and triggers the onChange callback with the component

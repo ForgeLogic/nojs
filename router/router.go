@@ -37,7 +37,7 @@ type routeDefinition struct {
 // It handles client-side routing with support for both path-based and hash-based modes.
 type Router struct {
 	routes           []routeDefinition
-	onChange         func(runtime.Component)
+	onChange         func(runtime.Component, string) // Second parameter is the path/key
 	mode             RoutingMode
 	notFoundHandler  RouteHandler
 	popstateListener js.Func
@@ -95,7 +95,7 @@ func (r *Router) HandleNotFound(handler RouteHandler) {
 // Start implements runtime.NavigationManager.Start().
 // It initializes the router by reading the initial URL, setting up browser
 // event listeners, and calling the onChange callback with the initial component.
-func (r *Router) Start(onChange func(runtime.Component)) error {
+func (r *Router) Start(onChange func(runtime.Component, string)) error {
 	r.onChange = onChange
 
 	// Listen for browser back/forward button clicks
@@ -144,10 +144,10 @@ func (r *Router) handlePathChange() {
 
 	comp, found := r.GetComponentForPath(path)
 	if found && r.onChange != nil {
-		r.onChange(comp)
+		r.onChange(comp, path) // Pass path as key
 	} else if !found && r.notFoundHandler != nil {
 		// Call 404 handler
-		r.onChange(r.notFoundHandler(nil))
+		r.onChange(r.notFoundHandler(nil), path)
 	} else if r.onChange != nil {
 		// No route found and no 404 handler configured
 		fmt.Printf("[Router] No route found for path: %s\n", path)

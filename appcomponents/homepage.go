@@ -11,6 +11,11 @@ import (
 // HomePage is the component rendered for the "/" route.
 type HomePage struct {
 	runtime.ComponentBase
+	Years []int
+}
+
+func (h *HomePage) OnInit() {
+	h.Years = []int{2025, 1930, 2000, 2010}
 }
 
 // NavigateToAbout handles navigation to the about page
