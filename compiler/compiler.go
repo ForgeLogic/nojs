@@ -1470,7 +1470,7 @@ func generateForLoopCode(n *html.Node, receiver string, componentMap map[string]
 	if opts.DevMode {
 		code.WriteString(fmt.Sprintf("\t// Development warning for empty slice\n"))
 		code.WriteString(fmt.Sprintf("\tif len(%s.%s) == 0 {\n", receiver, propDesc.Name))
-		code.WriteString(fmt.Sprintf("\t\tconsole.Warning(\"[@for] Rendering empty list for '%s' in %s. Consider using {@if} to handle empty state.\")\n",
+		code.WriteString(fmt.Sprintf("\t\tconsole.Warn(\"[@for] Rendering empty list for '%s' in %s. Consider using {@if} to handle empty state.\")\n",
 			propDesc.Name, currentComp.PascalName))
 		code.WriteString("\t}\n\n")
 	}
@@ -1706,7 +1706,7 @@ func generateNodeCode(n *html.Node, receiver string, componentMap map[string]com
 
 						// Generate dev warning if enabled
 						if opts.DevMode {
-							warningCode := fmt.Sprintf("func() []*vdom.VNode {\nif len(%s.%s) == 0 {\nconsole.Warning(\"[Slot] Rendering empty content slot '%s' in component '%s'. Parent provided no content.\")\n}\nreturn %s.%s\n}()...",
+							warningCode := fmt.Sprintf("func() []*vdom.VNode {\nif len(%s.%s) == 0 {\nconsole.Warn(\"[Slot] Rendering empty content slot '%s' in component '%s'. Parent provided no content.\")\n}\nreturn %s.%s\n}()...",
 								receiver, currentComp.Schema.Slot.Name, currentComp.Schema.Slot.Name, currentComp.PascalName, receiver, currentComp.Schema.Slot.Name)
 							childrenCode = append(childrenCode, warningCode)
 						} else {
@@ -1728,7 +1728,7 @@ func generateNodeCode(n *html.Node, receiver string, componentMap map[string]com
 							hasSlotSpread = true
 
 							if opts.DevMode {
-								warningCode := fmt.Sprintf("func() []*vdom.VNode {\nif len(%s.%s) == 0 {\nconsole.Warning(\"[Slot] Rendering empty content slot '%s' in component '%s'. Parent provided no content.\")\n}\nreturn %s.%s\n}()...",
+								warningCode := fmt.Sprintf("func() []*vdom.VNode {\nif len(%s.%s) == 0 {\nconsole.Warn(\"[Slot] Rendering empty content slot '%s' in component '%s'. Parent provided no content.\")\n}\nreturn %s.%s\n}()...",
 									receiver, propDesc.Name, propDesc.Name, currentComp.PascalName, receiver, propDesc.Name)
 								childrenCode = append(childrenCode, warningCode)
 							} else {

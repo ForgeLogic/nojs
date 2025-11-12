@@ -6,17 +6,17 @@ import (
 	"syscall/js"
 )
 
-func Log(args ...interface{}) {
+func Log(args ...any) {
 	console := js.Global().Get("console")
 	console.Call("log", args...)
 }
 
-func Warning(args ...interface{}) {
+func Warn(args ...any) {
 	console := js.Global().Get("console")
 	console.Call("warn", args...)
 }
 
-func Error(args ...interface{}) {
+func Error(args ...any) {
 	console := js.Global().Get("console")
 	console.Call("error", args...)
 }

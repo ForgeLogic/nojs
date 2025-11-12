@@ -30,7 +30,7 @@ func main() {
 	appRouter.Handle("/blog/{year}", func(params map[string]string) runtime.Component {
 		x, err := strconv.Atoi(params["year"])
 		if err != nil {
-			console.Warning("Error parsing {year} parameter in route `/blog/{year}`: ", err.Error())
+			console.Warn("Error parsing {year} parameter in route `/blog/{year}`: ", err.Error())
 		}
 
 		return &appcomponents.BlogPage{Year: x}
