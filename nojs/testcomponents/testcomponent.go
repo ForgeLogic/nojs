@@ -1,7 +1,7 @@
 //go:build js || wasm
 // +build js wasm
 
-package main
+package testcomponents
 
 import (
 	"github.com/vcrobe/nojs/vdom"

@@ -1,4 +1,4 @@
-package main
+package compiler
 
 import (
 	"fmt"
@@ -559,7 +559,7 @@ func generateTernaryExpression(negated bool, condition, trueVal, falseVal, recei
 }
 
 // Compile is the main entry point for the AOT compiler.
-func compile(srcDir, outDir string, devMode bool) error {
+func Compile(srcDir, outDir string, devMode bool) error {
 	opts := compileOptions{DevMode: devMode}
 
 	// Convert srcDir and outDir to absolute paths for consistent path handling
@@ -1537,7 +1537,7 @@ func generateForLoopCode(n *html.Node, receiver string, componentMap map[string]
 
 	// Add development warning if enabled
 	if opts.DevMode {
-		code.WriteString(fmt.Sprintf("\t// Development warning for empty slice\n"))
+		code.WriteString("\t// Development warning for empty slice\n")
 		code.WriteString(fmt.Sprintf("\tif len(%s.%s) == 0 {\n", receiver, propDesc.Name))
 		code.WriteString(fmt.Sprintf("\t\tconsole.Warn(\"[@for] Rendering empty list for '%s' in %s. Consider using {@if} to handle empty state.\")\n",
 			propDesc.Name, currentComp.PascalName))
@@ -2042,7 +2042,7 @@ func extractOriginalAttributesWithLineNumber(n *html.Node, componentName, htmlSo
 	re := regexp.MustCompile(pattern)
 	matchIndex := re.FindStringSubmatchIndex(htmlSource)
 
-	if matchIndex == nil || len(matchIndex) < 4 {
+	if len(matchIndex) < 4 {
 		return originalAttrs, lineNumber
 	}
 

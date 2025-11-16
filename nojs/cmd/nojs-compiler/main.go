@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+
+	"github.com/vcrobe/nojs/compiler"
 )
 
 func main() {
@@ -31,7 +33,7 @@ func main() {
 	if *devMode {
 		fmt.Printf("Development mode: ENABLED\n")
 	}
-	err := compile(*inDir, *outDir, *devMode)
+	err := compiler.Compile(*inDir, *outDir, *devMode)
 	if err != nil {
 		log.Fatalf("Compilation failed: %v", err)
 	}

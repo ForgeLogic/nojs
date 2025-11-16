@@ -20,7 +20,7 @@ To compile this project, please follow these steps:
 2. Run the following command to build the project for WebAssembly:
 
    ``` bash
-   $ GOOS=js GOARCH=wasm go build -o main.wasm
+   $ GOOS=js GOARCH=wasm go build -o main.wasm -tags=dev
    ```
 
    ``` PowerShell

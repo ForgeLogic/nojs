@@ -6,9 +6,9 @@ package main
 import (
 	"strconv"
 
-	"github.com/vcrobe/nojs/appcomponents"
-	"github.com/vcrobe/nojs/appcomponents/admin"
-	"github.com/vcrobe/nojs/appcomponents/admin/settings"
+	"github.com/vcrobe/app/appcomponents"
+	"github.com/vcrobe/app/appcomponents/admin"
+	"github.com/vcrobe/app/appcomponents/admin/settings"
 	"github.com/vcrobe/nojs/console"
 	"github.com/vcrobe/nojs/router"
 	"github.com/vcrobe/nojs/runtime"
