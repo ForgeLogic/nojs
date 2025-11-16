@@ -9,6 +9,21 @@ import (
 	"github.com/vcrobe/nojs/console"
 )
 
+// eventBinding tracks a DOM listener so it can be removed before releasing the js.Func.
+type eventBinding struct {
+	target    js.Value
+	eventName string
+	callback  js.Func
+}
+
+// release detaches the listener and releases the underlying js.Func.
+func (b eventBinding) release() {
+	if b.target.Truthy() && b.eventName != "" {
+		b.target.Call("removeEventListener", b.eventName, b.callback)
+	}
+	b.callback.Release()
+}
+
 // releaseCallbacks releases all js.Func objects stored in a VNode.
 func releaseCallbacks(v *VNode) {
 	if v == nil {
@@ -17,8 +32,19 @@ func releaseCallbacks(v *VNode) {
 
 	callbacks := v.GetEventCallbacks()
 	for _, cb := range callbacks {
-		if jsFunc, ok := cb.(js.Func); ok {
-			jsFunc.Release()
+		switch stored := cb.(type) {
+		case eventBinding:
+			stored.release()
+		case *eventBinding:
+			if stored != nil {
+				stored.release()
+			}
+		case js.Func:
+			stored.Release()
+		case *js.Func:
+			if stored != nil {
+				stored.Release()
+			}
 		}
 	}
 	v.ClearEventCallbacks()
@@ -150,7 +176,7 @@ func attachEventListeners(el js.Value, vnode *VNode, attributes map[string]any) 
 
 				// Store the callback in VNode for later cleanup
 				if vnode != nil {
-					vnode.AddEventCallback(cb)
+					vnode.AddEventCallback(eventBinding{target: el, eventName: eventName, callback: cb})
 				}
 			}
 		}
@@ -258,7 +284,7 @@ func createElement(n *VNode) js.Value {
 			})
 			el.Call("addEventListener", "click", cb)
 			// Store callback for cleanup
-			n.AddEventCallback(cb)
+			n.AddEventCallback(eventBinding{target: el, eventName: "click", callback: cb})
 		}
 
 		return el
