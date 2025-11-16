@@ -1,4 +1,4 @@
-package appcomponents
+package shared
 
 import (
 	"github.com/vcrobe/nojs/runtime"

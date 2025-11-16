@@ -1,7 +1,7 @@
 //go:build js || wasm
 // +build js wasm
 
-package appcomponents
+package pages
 
 import (
 	"github.com/vcrobe/nojs/events"
@@ -16,7 +16,7 @@ type BlogPage struct {
 	Year int
 }
 
-// NavigateToHome handles navigation to the home page
+// NavigateToHome demonstrates navigation back to the home page using the `<a>` tag.
 func (a *BlogPage) NavigateToHome(e events.ClickEventArgs) {
 	e.PreventDefault()
 	if err := a.Navigate("/"); err != nil {

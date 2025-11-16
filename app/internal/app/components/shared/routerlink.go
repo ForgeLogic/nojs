@@ -1,6 +1,6 @@
 //go:build js && wasm
 
-package appcomponents
+package shared
 
 import (
 	"github.com/vcrobe/nojs/events"

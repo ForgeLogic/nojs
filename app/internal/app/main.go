@@ -6,9 +6,10 @@ package main
 import (
 	"strconv"
 
-	"github.com/vcrobe/app/appcomponents"
-	"github.com/vcrobe/app/appcomponents/admin"
-	"github.com/vcrobe/app/appcomponents/admin/settings"
+	"github.com/vcrobe/app/internal/app/components/pages"
+	"github.com/vcrobe/app/internal/app/components/pages/admin"
+	"github.com/vcrobe/app/internal/app/components/pages/admin/settings"
+	"github.com/vcrobe/app/internal/app/components/shared"
 	"github.com/vcrobe/nojs/console"
 	"github.com/vcrobe/nojs/router"
 	"github.com/vcrobe/nojs/runtime"
@@ -22,11 +23,11 @@ func main() {
 
 	// 2. Define routes - map paths to component factories
 	appRouter.Handle("/", func(params map[string]string) runtime.Component {
-		return &appcomponents.HomePage{}
+		return &pages.HomePage{}
 	})
 
 	appRouter.Handle("/about", func(params map[string]string) runtime.Component {
-		return &appcomponents.AboutPage{}
+		return &pages.AboutPage{}
 	})
 
 	appRouter.Handle("/admin", func(params map[string]string) runtime.Component {
@@ -43,12 +44,12 @@ func main() {
 			console.Warn("Error parsing {year} parameter in route `/blog/{year}`: ", err.Error())
 		}
 
-		return &appcomponents.BlogPage{Year: year}
+		return &pages.BlogPage{Year: year}
 	})
 
 	// Optional: Handle 404 cases
 	appRouter.HandleNotFound(func(params map[string]string) runtime.Component {
-		return &appcomponents.PageNotFound{}
+		return &shared.PageNotFound{}
 	})
 
 	// 3. Create the Renderer, passing the router as the NavigationManager

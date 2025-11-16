@@ -1,7 +1,7 @@
 //go:build js || wasm
 // +build js wasm
 
-package appcomponents
+package pages
 
 import (
 	"github.com/vcrobe/nojs/runtime"
