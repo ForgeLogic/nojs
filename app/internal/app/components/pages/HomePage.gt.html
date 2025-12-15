@@ -11,6 +11,12 @@
         {@endfor}
     </nav>
 
+    {@if IsLoading}
+        <p>Loading data, please wait...</p>
+    {@else}
+        <p>Data loaded: {LoadedData}</p>
+    {@endif}
+
     <button @onclick="ShowTheModal">Show Modal</button>
     <p>Modal result: {LastModalResult}</p>
     <p>Is modal visible: {IsMyModalVisible}</p>

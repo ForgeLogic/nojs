@@ -5,6 +5,7 @@ package runtime
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/vcrobe/nojs/vdom"
 )
@@ -14,7 +15,9 @@ var _ Renderer = (*RendererImpl)(nil)
 
 // RendererImpl is the concrete implementation of the Renderer interface.
 // It manages the component instance tree and handles rendering lifecycle.
+// All public methods are thread-safe and can be called from multiple goroutines.
 type RendererImpl struct {
+	mu               sync.Mutex // Protects all renderer state from concurrent access
 	instances        map[string]Component
 	initialized      map[string]bool   // Track which components have been initialized
 	activeKeys       map[string]bool   // Track which components are active in the current render
@@ -44,13 +47,20 @@ func NewRenderer(navManager NavigationManager, mountID string) *RendererImpl {
 // When the key changes, the entire component tree is replaced instead of patched.
 // This is typically called by the router's onChange callback when navigation occurs.
 // For non-routed apps, it can be called directly with a static component and empty key.
+// This method is thread-safe.
 func (r *RendererImpl) SetCurrentComponent(comp Component, key string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	r.currentComponent = comp
 	r.currentKey = key
 }
 
 // RenderRoot starts the rendering process for the entire application.
+// This method is thread-safe and protected by a mutex.
 func (r *RendererImpl) RenderRoot() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	// Reset activeKeys for this render cycle
 	r.activeKeys = make(map[string]bool)
 
@@ -172,7 +182,10 @@ func (r *RendererImpl) cleanupUnmountedComponents() {
 }
 
 // ReRender patches the DOM with minimal changes.
+// This method is thread-safe and can be called from multiple goroutines.
+// If multiple goroutines call this simultaneously, only one will execute at a time.
 func (r *RendererImpl) ReRender() {
+	// Note: RenderRoot already acquires the mutex, so this is thread-safe
 	r.RenderRoot()
 }
 
