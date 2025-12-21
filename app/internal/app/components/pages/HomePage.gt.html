@@ -1,4 +1,4 @@
-<div>
+<MainLayout MainLayoutCtx="{MainLayoutCtx}">
     <h1>Welcome Home!</h1>
     <p>This is the home page.</p>
     <nav>
@@ -11,11 +11,7 @@
         {@endfor}
     </nav>
 
-    {@if IsLoading}
-        <p>Loading data, please wait...</p>
-    {@else}
-        <p>Data loaded: {LoadedData}</p>
-    {@endif}
+    <button @onclick="UpdateTitle">Change Layout Title</button>
 
     <button @onclick="ShowTheModal">Show Modal</button>
     <p>Modal result: {LastModalResult}</p>
@@ -32,4 +28,4 @@
         <p>It's all type-safe and compiled!</p>
 
     </Modal>
-</div>
+</MainLayout>

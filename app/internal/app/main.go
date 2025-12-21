@@ -10,12 +10,18 @@ import (
 	"github.com/vcrobe/app/internal/app/components/pages/admin"
 	"github.com/vcrobe/app/internal/app/components/pages/admin/settings"
 	"github.com/vcrobe/app/internal/app/components/shared"
+	"github.com/vcrobe/app/internal/app/context"
 	"github.com/vcrobe/nojs/console"
 	"github.com/vcrobe/nojs/router"
 	"github.com/vcrobe/nojs/runtime"
 )
 
 func main() {
+	// Create a shared context for the layout
+	mainLayoutCtx := &context.MainLayoutCtx{
+		Title: "Welcome",
+	}
+
 	// 1. Create the Router with path-based mode (clean URLs)
 	// For hash-based routing (e.g., #/about), use:
 	//   appRouter := router.New(&router.Config{Mode: router.HashMode})
@@ -23,7 +29,7 @@ func main() {
 
 	// 2. Define routes - map paths to component factories
 	appRouter.Handle("/", func(params map[string]string) runtime.Component {
-		return &pages.HomePage{}
+		return &pages.HomePage{MainLayoutCtx: mainLayoutCtx}
 	})
 
 	appRouter.Handle("/about", func(params map[string]string) runtime.Component {
