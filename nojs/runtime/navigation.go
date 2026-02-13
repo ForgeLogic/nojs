@@ -9,14 +9,16 @@ package runtime
 // that fulfills this interface can be plugged into the Renderer.
 type NavigationManager interface {
 	// Start initializes the router. It must read the initial browser URL,
-	// determine the initial component, call the onChange callback with it,
+	// determine the initial component chain, call the onChange callback with it,
 	// and begin listening for browser history events (like popstate).
 	//
 	// The onChange callback is provided by the application (usually in main.go)
-	// and is responsible for updating the renderer's current component and
-	// triggering a re-render. The key parameter (typically the path) identifies
-	// the component uniquely for reconciliation purposes (e.g., for router navigation).
-	Start(onChange func(newComponent Component, key string)) error
+	// and is responsible for updating the renderer's current components and
+	// triggering a re-render. The chain parameter contains all components to render
+	// (from first volatile layer onwards, including sublayouts and the leaf page).
+	// The key parameter (typically the path) identifies the component chain uniquely
+	// for reconciliation purposes (e.g., for router navigation).
+	Start(onChange func(chain []Component, key string)) error
 
 	// Navigate programmatically changes the browser URL using the History API
 	// (or hash navigation) and triggers the onChange callback with the component

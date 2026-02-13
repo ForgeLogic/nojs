@@ -14,7 +14,8 @@ type HomePage struct {
 
 	MainLayoutCtx *context.MainLayoutCtx
 
-	Years []int
+	Years   []int
+	Counter int
 
 	// The parent *must* control the visibility state.
 	IsMyModalVisible bool
@@ -52,4 +53,9 @@ func (c *HomePage) HandleModalClose(result modal.ModalResult) {
 	}
 
 	c.StateHasChanged()
+}
+
+func (h *HomePage) IncrementCounter() {
+	h.Counter++
+	h.StateHasChanged()
 }

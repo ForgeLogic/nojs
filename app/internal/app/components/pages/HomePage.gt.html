@@ -1,15 +1,11 @@
-<MainLayout MainLayoutCtx="{MainLayoutCtx}">
+<div>
     <h1>Welcome Home!</h1>
     <p>This is the home page.</p>
-    <nav>
-        <RouterLink Href="/about">Go to About Page</RouterLink>
-        <RouterLink Href="/admin">Go to Admin Page</RouterLink>
-        <br/>
-        {@for _, v := range Years trackBy v}
-            <RouterLink Href="/blog/{v}">Go to Blogs Page ({v})</RouterLink>
-            <br/>
-        {@endfor}
-    </nav>
+
+    <p>Counter: {Counter}</p>
+
+    <button @onclick="IncrementCounter">Increment Counter</button>
+
 
     <button @onclick="UpdateTitle">Change Layout Title</button>
 
@@ -28,4 +24,4 @@
         <p>It's all type-safe and compiled!</p>
 
     </Modal>
-</MainLayout>
+</div>

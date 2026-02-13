@@ -1,8 +1,14 @@
-<div>
+<div id="mainLayoutComponent">
     <header>
         <h1>Layout title: {MainLayoutCtx.Title}</h1>
     </header>
     <main>
+        <nav style="background-color: cadetblue;">
+            <RouterLink Href="/about">Go to About Page</RouterLink>
+            <br/>
+            <RouterLink Href="/admin">Go to Admin Page</RouterLink>
+            <br/>
+        </nav>
         {BodyContent}
     </main>
 </div>

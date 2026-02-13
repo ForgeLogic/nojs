@@ -6,7 +6,8 @@ import "fmt"
 // StateHasChanged method, which triggers a UI re-render.
 // This type has no build tags and works in both WASM and test environments.
 type ComponentBase struct {
-	renderer Renderer // Use interface type, not concrete implementation
+	renderer   Renderer  // Use interface type, not concrete implementation
+	slotParent Component // Parent layout if this component is in a []*vdom.VNode slot
 }
 
 // SetRenderer is called by the framework's runtime to inject a reference
@@ -16,15 +17,38 @@ func (b *ComponentBase) SetRenderer(r Renderer) {
 	b.renderer = r
 }
 
+// GetRenderer returns the renderer instance associated with this component.
+// Used internally by components that need direct access to renderer methods.
+func (b *ComponentBase) GetRenderer() Renderer {
+	return b.renderer
+}
+
 // StateHasChanged signals to the framework that the component's state has
 // been updated and the UI should be re-rendered to reflect the changes.
+// If this component is mounted inside a layout's []*vdom.VNode slot,
+// triggers scoped re-render of only that slot. Otherwise, full re-render.
 func (b *ComponentBase) StateHasChanged() {
 	if b.renderer == nil {
 		println("StateHasChanged called, but renderer is nil (component not mounted?)")
 		return
 	}
-	// Trigger a re-render of the root component.
+
+	// Check if this component is in a layout's slot (in-memory tracking)
+	if b.slotParent != nil {
+		// Scoped re-render: only re-render the parent layout's slot content
+		b.renderer.ReRenderSlot(b.slotParent)
+		return
+	}
+
+	// Full re-render (for root or unslotted components)
 	b.renderer.ReRender()
+}
+
+// SetSlotParent associates this component with a parent layout.
+// Called by the renderer when mounting a child into a layout's []*vdom.VNode slot.
+// No DOM attributes are added—the relationship is tracked entirely in Go memory.
+func (b *ComponentBase) SetSlotParent(parent Component) {
+	b.slotParent = parent
 }
 
 // Navigate requests client-side navigation to a new path.

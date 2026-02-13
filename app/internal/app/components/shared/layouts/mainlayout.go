@@ -20,3 +20,9 @@ func (c *MainLayout) OnInit() {
 		c.MainLayoutCtx.OnUpdate = c.StateHasChanged
 	}
 }
+
+// SetBodyContent sets the content of the BodyContent slot.
+// Called by the router engine when linking layout chains.
+func (c *MainLayout) SetBodyContent(content []*vdom.VNode) {
+	c.BodyContent = content
+}

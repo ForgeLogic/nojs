@@ -14,6 +14,12 @@ type Renderer interface {
 	// Used by StateHasChanged() when component state changes.
 	ReRender()
 
+	// ReRenderSlot patches only the BodyContent slot of a layout,
+	// preserving the layout instance and its state.
+	// Called when a page component (inside a layout's slot) calls StateHasChanged().
+	// It diffs the entire parent layout's VDOM; only changed content is patched.
+	ReRenderSlot(slotParent Component) error
+
 	// Navigate performs client-side navigation to the given path.
 	// Used by Link components and programmatic navigation.
 	Navigate(path string) error

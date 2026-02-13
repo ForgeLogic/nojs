@@ -15,3 +15,7 @@ type Component interface {
 	// This enables StateHasChanged() to trigger re-renders.
 	SetRenderer(r Renderer)
 }
+
+// ComponentFactory creates a new instance of a component.
+// Used by the router to instantiate components for routes.
+type ComponentFactory func() Component

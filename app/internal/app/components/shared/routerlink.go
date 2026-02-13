@@ -3,6 +3,8 @@
 package shared
 
 import (
+	"fmt"
+
 	"github.com/vcrobe/nojs/events"
 	"github.com/vcrobe/nojs/runtime"
 	"github.com/vcrobe/nojs/vdom"
@@ -35,6 +37,9 @@ type RouterLink struct {
 func (c *RouterLink) HandleClick(e events.ClickEventArgs) {
 	// Prevent the browser from navigating (which would reload the page)
 	e.PreventDefault()
+
+	println("[RouterLink.HandleClick] Href value: ", c.Href)
+	println("[RouterLink.HandleClick] c pointer:", fmt.Sprintf("%p", c))
 
 	// Use the framework's client-side router to navigate
 	if err := c.Navigate(c.Href); err != nil {

@@ -95,6 +95,20 @@ type Cleaner interface {
 	OnDestroy()
 }
 
+// Mountable is implemented by components that need lifecycle notifications when mounted.
+// OnMount is called once when the component instance is created and added to the component tree.
+// This is useful for layouts and components that need to initialize resources.
+type Mountable interface {
+	OnMount()
+}
+
+// Unmountable is implemented by components that need cleanup when unmounted.
+// OnUnmount is called once when the component instance is removed from the component tree.
+// This is useful for layouts and components that need to release resources before being destroyed.
+type Unmountable interface {
+	OnUnmount()
+}
+
 // PropUpdater is implemented by generated component code to support prop updates.
 // This interface is used internally by the framework and should not be implemented manually.
 // The compiler generates the ApplyProps method automatically for each component.

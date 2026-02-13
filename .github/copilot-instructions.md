@@ -114,6 +114,7 @@ Notes
   - Keep Go alive with `select {}` at end of `main()`.
 - Browser API wrappers: Prefer packages `console`, `dialogs`, `sessionStorage` over raw `syscall/js` in app code.
 - VDOM: `vdom.VNode` has a minimal renderer; no diff/patch logic. Only `<p>` renders; others are ignored for now.
+- Content Projection (Slots): The slot is identified by the field type `[]*vdom.VNode`, not by a naming convention. A layout component exposes a single `[]*vdom.VNode` field (e.g., `BodyContent`) which acts as the content slot. The AOT compiler detects this field type and generates code that injects child component VNodes into this field. No DOM attributes are added for slot identification—relationships are tracked entirely in-memory via component instance references.
 
 ## Commit message guidelines
 - When suggesting a commit message, always use the [Conventional Commits](https://www.conventionalcommits.org/) specification (e.g., `feat:`, `fix:`, `chore:`, etc.).
