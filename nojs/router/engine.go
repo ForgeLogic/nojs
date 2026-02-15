@@ -66,6 +66,11 @@ func (e *Engine) Navigate(path string) error {
 	defer e.mu.Unlock()
 
 	console.Log("[Engine.Navigate] Called with path:", path)
+
+	if path == "" {
+		console.Warn("[Engine.Navigate] The path is empty string")
+	}
+
 	console.Log("[Engine.Navigate] Current path:", e.currentPath)
 
 	targetRoute, ok := e.routes[path]
