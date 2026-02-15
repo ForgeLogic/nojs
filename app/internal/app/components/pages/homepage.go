@@ -23,8 +23,14 @@ type HomePage struct {
 	LastModalResult string
 }
 
-func (h *HomePage) OnInit() {
+func (h *HomePage) OnMount() {
 	h.Years = []int{120, 300}
+
+	println("[HomePage] Mounted")
+}
+
+func (h *HomePage) OnUnmount() {
+	println("[HomePage] Unmounted")
 }
 
 func (c *HomePage) UpdateTitle() {

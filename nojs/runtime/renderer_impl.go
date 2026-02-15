@@ -86,9 +86,9 @@ func (r *RendererImpl) RenderRoot() {
 
 		// Handle root component lifecycle
 		if _, initialized := r.initialized["__root__"]; !initialized {
-			// Call OnInit only once, before first render
-			if initializer, ok := r.currentComponent.(Initializer); ok {
-				r.callOnInit(initializer, "__root__")
+			// Call OnMount only once, before first render
+			if mountable, ok := r.currentComponent.(Mountable); ok {
+				r.callOnMount(mountable, "__root__")
 			}
 			r.initialized["__root__"] = true
 		}
@@ -120,9 +120,9 @@ func (r *RendererImpl) RenderRoot() {
 			vdom.Clear(r.mountID, r.prevVDOM)
 			vdom.RenderToSelector(r.mountID, newVDOM)
 
-			// Call OnDestroy on old root component
-			if cleaner, ok := r.currentComponent.(Cleaner); ok {
-				r.callOnDestroy(cleaner, "__root__")
+			// Call OnUnmount on old root component
+			if unmountable, ok := r.currentComponent.(Unmountable); ok {
+				r.callOnUnmount(unmountable, "__root__")
 			}
 
 			// Reset initialization tracking for fresh component lifecycle
@@ -191,9 +191,9 @@ func (r *RendererImpl) RenderChild(key string, childWithProps Component) *vdom.V
 
 	// Call lifecycle methods in the correct order
 	if isFirstRender {
-		// Call OnInit only once, before first render
-		if initializer, ok := instance.(Initializer); ok {
-			r.callOnInit(initializer, globalKey)
+		// Call OnMount only once, before first render
+		if mountable, ok := instance.(Mountable); ok {
+			r.callOnMount(mountable, globalKey)
 		}
 		r.initialized[globalKey] = true
 	}
@@ -213,14 +213,14 @@ func (r *RendererImpl) RenderChild(key string, childWithProps Component) *vdom.V
 }
 
 // cleanupUnmountedComponents removes components that are no longer in the tree
-// and calls their OnDestroy lifecycle method if they implement the Cleaner interface.
+// and calls their OnUnmount lifecycle method if they implement the Unmountable interface.
 func (r *RendererImpl) cleanupUnmountedComponents() {
 	for key, instance := range r.instances {
 		// If the component wasn't marked as active in this render, it's been unmounted
 		if !r.activeKeys[key] {
-			// Call OnDestroy if the component implements Cleaner
-			if cleaner, ok := instance.(Cleaner); ok {
-				r.callOnDestroy(cleaner, key)
+			// Call OnUnmount if the component implements Unmountable
+			if unmountable, ok := instance.(Unmountable); ok {
+				r.callOnUnmount(unmountable, key)
 			}
 
 			// Remove from tracking maps

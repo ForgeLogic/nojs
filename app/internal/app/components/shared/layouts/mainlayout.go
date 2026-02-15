@@ -14,7 +14,7 @@ type MainLayout struct {
 	BodyContent   []*vdom.VNode
 }
 
-func (c *MainLayout) OnInit() {
+func (c *MainLayout) OnMount() {
 	// We ensure the callback points to this component's refresh logic
 	if c.MainLayoutCtx != nil {
 		c.MainLayoutCtx.OnUpdate = c.StateHasChanged

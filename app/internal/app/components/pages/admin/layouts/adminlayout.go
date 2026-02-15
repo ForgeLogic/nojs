@@ -24,10 +24,6 @@ func NewAdminLayout() runtime.Component {
 	}
 }
 
-func (a *AdminLayout) OnInit() {
-	// Initialize any admin-specific state
-}
-
 func (a *AdminLayout) OnMount() {
 	// Called when AdminLayout is first mounted
 	println("[AdminLayout] Mounted")

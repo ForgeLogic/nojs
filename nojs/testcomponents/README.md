@@ -103,7 +103,7 @@ This represents a major simplification: **one component file works in both WASM 
 
 - [ ] Test VDOM diffing algorithm in isolation
 - [ ] Mock browser events for event handler testing
-- [ ] Test component lifecycle methods (OnInit, OnDestroy, etc.)
+- [ ] Test component lifecycle methods (OnMount, OnUnmount, etc.)
 - [ ] Test content projection (slots)
 - [ ] Test conditional rendering ({@if})
 - [ ] Test list rendering ({@for})

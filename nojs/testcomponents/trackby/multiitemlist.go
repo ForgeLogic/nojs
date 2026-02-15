@@ -16,7 +16,7 @@ type MultiItemList struct {
 	Items []Item
 }
 
-func (m *MultiItemList) OnInit() {
+func (m *MultiItemList) OnMount() {
 	m.Items = []Item{
 		{ID: 101, Name: "Alpha"},
 		{ID: 102, Name: "Beta"},

@@ -6,16 +6,16 @@ package runtime
 
 import "fmt"
 
-// callOnInit invokes the OnInit lifecycle method in production mode.
+// callOnMount invokes the OnMount lifecycle method in production mode.
 // In production mode, panics are recovered and logged to prevent application crashes.
-func (r *RendererImpl) callOnInit(initializer Initializer, key string) {
+func (r *RendererImpl) callOnMount(mountable Mountable, key string) {
 	defer func() {
 		if rec := recover(); rec != nil {
-			fmt.Printf("ERROR: OnInit panic in component %s: %v\n", key, rec)
+			fmt.Printf("ERROR: OnMount panic in component %s: %v\n", key, rec)
 			// In a real production environment, this could be sent to an error tracking service
 		}
 	}()
-	initializer.OnInit()
+	mountable.OnMount()
 }
 
 // callOnParametersSet invokes the OnParametersSet lifecycle method in production mode.
@@ -30,14 +30,14 @@ func (r *RendererImpl) callOnParametersSet(receiver ParameterReceiver, key strin
 	receiver.OnParametersSet()
 }
 
-// callOnDestroy invokes the OnDestroy lifecycle method in production mode.
+// callOnUnmount invokes the OnUnmount lifecycle method in production mode.
 // In production mode, panics are recovered and logged to prevent application crashes.
-func (r *RendererImpl) callOnDestroy(cleaner Cleaner, key string) {
+func (r *RendererImpl) callOnUnmount(unmountable Unmountable, key string) {
 	defer func() {
 		if rec := recover(); rec != nil {
-			fmt.Printf("ERROR: OnDestroy panic in component %s: %v\n", key, rec)
+			fmt.Printf("ERROR: OnUnmount panic in component %s: %v\n", key, rec)
 			// In a real production environment, this could be sent to an error tracking service
 		}
 	}()
-	cleaner.OnDestroy()
+	unmountable.OnUnmount()
 }

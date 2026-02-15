@@ -96,11 +96,6 @@ func (e *Engine) Navigate(path string) error {
 	for i := pivot; i < len(e.liveInstances); i++ {
 		instance := e.liveInstances[i]
 
-		// Call unmount lifecycle hook if implemented
-		if unmountable, ok := interface{}(instance).(runtime.Unmountable); ok {
-			unmountable.OnUnmount()
-		}
-
 		// Clear slot parent reference to break circular references
 		if slotTracking, ok := interface{}(instance).(interface{ SetSlotParent(runtime.Component) }); ok {
 			slotTracking.SetSlotParent(nil)
@@ -119,11 +114,6 @@ func (e *Engine) Navigate(path string) error {
 
 		// Inject renderer so component can call StateHasChanged() and Navigate()
 		instance.SetRenderer(e.renderer)
-
-		// Call mount lifecycle hook if implemented
-		if mountable, ok := interface{}(instance).(runtime.Mountable); ok {
-			mountable.OnMount()
-		}
 
 		newInstances[i] = instance
 	}

@@ -4,10 +4,10 @@
 
 package runtime
 
-// callOnInit invokes the OnInit lifecycle method in development mode.
+// callOnMount invokes the OnMount lifecycle method in development mode.
 // In dev mode, panics propagate to aid debugging and fast failure.
-func (r *RendererImpl) callOnInit(initializer Initializer, key string) {
-	initializer.OnInit()
+func (r *RendererImpl) callOnMount(mountable Mountable, key string) {
+	mountable.OnMount()
 }
 
 // callOnParametersSet invokes the OnParametersSet lifecycle method in development mode.
@@ -16,8 +16,8 @@ func (r *RendererImpl) callOnParametersSet(receiver ParameterReceiver, key strin
 	receiver.OnParametersSet()
 }
 
-// callOnDestroy invokes the OnDestroy lifecycle method in development mode.
+// callOnUnmount invokes the OnUnmount lifecycle method in development mode.
 // In dev mode, panics propagate to aid debugging and fast failure.
-func (r *RendererImpl) callOnDestroy(cleaner Cleaner, key string) {
-	cleaner.OnDestroy()
+func (r *RendererImpl) callOnUnmount(unmountable Unmountable, key string) {
+	unmountable.OnUnmount()
 }

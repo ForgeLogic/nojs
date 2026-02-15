@@ -3,8 +3,8 @@
 
 package runtime
 
-// Initializer is implemented by components that need one-time initialization.
-// OnInit is called once after the component instance is created, before the first render.
+// Mountable is implemented by components that need one-time initialization.
+// OnMount is called once after the component instance is created, before the first render.
 //
 // Example:
 //
@@ -15,7 +15,7 @@ package runtime
 //	    IsLoading bool
 //	}
 //
-//	func (c *UserProfile) OnInit() {
+//	func (c *UserProfile) OnMount() {
 //	    c.IsLoading = true
 //	    go c.fetchUserData() // Launch async task
 //	}
@@ -27,8 +27,8 @@ package runtime
 //	    c.IsLoading = false
 //	    c.StateHasChanged() // Trigger re-render
 //	}
-type Initializer interface {
-	OnInit()
+type Mountable interface {
+	OnMount()
 }
 
 // ParameterReceiver is implemented by components that need to react to parameter changes.
@@ -55,8 +55,9 @@ type ParameterReceiver interface {
 	OnParametersSet()
 }
 
-// Cleaner is implemented by components that need cleanup when unmounted.
-// OnDestroy is called once when the component instance is removed from the component tree.
+// Unmountable is implemented by components that need cleanup when unmounted.
+// OnUnmount is called once when the component instance is removed from the component tree.
+// This is useful for layouts and components that need to release resources before being destroyed.
 //
 // Example:
 //
@@ -67,7 +68,7 @@ type ParameterReceiver interface {
 //	    Count  int                `nojs:"state"`
 //	}
 //
-//	func (c *TimerComponent) OnInit() {
+//	func (c *TimerComponent) OnMount() {
 //	    c.ctx, c.cancel = context.WithCancel(context.Background())
 //	    go c.startTimer()
 //	}
@@ -86,25 +87,11 @@ type ParameterReceiver interface {
 //	    }
 //	}
 //
-//	func (c *TimerComponent) OnDestroy() {
+//	func (c *TimerComponent) OnUnmount() {
 //	    if c.cancel != nil {
 //	        c.cancel() // Stop the timer goroutine
 //	    }
 //	}
-type Cleaner interface {
-	OnDestroy()
-}
-
-// Mountable is implemented by components that need lifecycle notifications when mounted.
-// OnMount is called once when the component instance is created and added to the component tree.
-// This is useful for layouts and components that need to initialize resources.
-type Mountable interface {
-	OnMount()
-}
-
-// Unmountable is implemented by components that need cleanup when unmounted.
-// OnUnmount is called once when the component instance is removed from the component tree.
-// This is useful for layouts and components that need to release resources before being destroyed.
 type Unmountable interface {
 	OnUnmount()
 }

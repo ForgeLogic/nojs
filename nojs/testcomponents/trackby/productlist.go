@@ -14,7 +14,7 @@ type ProductList struct {
 	Products []Product
 }
 
-func (p *ProductList) OnInit() {
+func (p *ProductList) OnMount() {
 	p.Products = []Product{
 		{ID: 1, Name: "Laptop"},
 		{ID: 2, Name: "Mouse"},

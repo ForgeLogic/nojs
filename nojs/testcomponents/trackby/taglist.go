@@ -8,7 +8,7 @@ type TagList struct {
 	Tags []string
 }
 
-func (t *TagList) OnInit() {
+func (t *TagList) OnMount() {
 	t.Tags = []string{"golang", "wasm", "component", "framework"}
 }
 
