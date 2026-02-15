@@ -16,15 +16,16 @@ import (
 // Engine manages routing with the app shell pattern and pivot-based layout reuse.
 // It preserves layout instances across navigations when the layout chain matches.
 type Engine struct {
-	mu            sync.Mutex
-	currentPath   string
-	currentRoute  *Route
-	activeChain   []ComponentMetadata
-	liveInstances []runtime.Component // Parallel to activeChain; instances are reused
-	pivotPoint    int                 // First index where chain differs between routes
-	routes        map[string]*Route
-	renderer      runtime.Renderer
-	onRouteChange func(chain []runtime.Component, key string)
+	mu               sync.Mutex
+	currentPath      string
+	currentRoute     *Route
+	activeChain      []ComponentMetadata
+	liveInstances    []runtime.Component // Parallel to activeChain; instances are reused
+	pivotPoint       int                 // First index where chain differs between routes
+	routes           map[string]*Route
+	renderer         runtime.Renderer
+	onRouteChange    func(chain []runtime.Component, key string)
+	popstateListener js.Func
 }
 
 // New creates a new router engine.
@@ -61,7 +62,13 @@ func (e *Engine) SetRouteChangeCallback(fn func(chain []runtime.Component, key s
 
 // Navigate changes the current route and triggers appropriate updates.
 // It uses the pivot algorithm to determine which layouts can be preserved.
+// If skipPushState is true, the URL won't be updated (used for popstate events).
 func (e *Engine) Navigate(path string) error {
+	return e.navigateInternal(path, false)
+}
+
+// navigateInternal handles the navigation logic with optional skipPushState flag.
+func (e *Engine) navigateInternal(path string, skipPushState bool) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
@@ -79,13 +86,17 @@ func (e *Engine) Navigate(path string) error {
 		return fmt.Errorf("no route for path: %s", path)
 	}
 
-	console.Log("[Engine.Navigate] Route found, updating URL with pushState")
+	console.Log("[Engine.Navigate] Route found")
 
-	// Update browser history using pushState
-	history := js.Global().Get("history")
-	history.Call("pushState", nil, "", path)
-
-	console.Log("[Engine.Navigate] URL updated, current location:", js.Global().Get("location").Get("pathname").String())
+	// Update browser history using pushState (unless this is a popstate navigation)
+	if !skipPushState {
+		console.Log("[Engine.Navigate] Updating URL with pushState")
+		history := js.Global().Get("history")
+		history.Call("pushState", nil, "", path)
+		console.Log("[Engine.Navigate] URL updated, current location:", js.Global().Get("location").Get("pathname").String())
+	} else {
+		console.Log("[Engine.Navigate] Skipping pushState (popstate event)")
+	}
 
 	// Calculate pivot point: first index where TypeID differs
 	pivot := e.calculatePivot(targetRoute.Chain)
@@ -224,9 +235,26 @@ func (e *Engine) Start(onChange func(chain []runtime.Component, key string)) err
 	e.onRouteChange = onChange
 	e.mu.Unlock()
 
-	// Navigate to the current browser path (or default to root)
-	// In a real implementation, you would read window.location.pathname here
-	return e.Navigate("/")
+	// Set up popstate listener for browser back/forward buttons
+	e.popstateListener = js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+		console.Log("[Engine] popstate event fired")
+		// Read current path from browser
+		currentPath := js.Global().Get("location").Get("pathname").String()
+		console.Log("[Engine] popstate path:", currentPath)
+		// Navigate without pushing state (URL already changed)
+		e.navigateInternal(currentPath, true)
+		return nil
+	})
+	js.Global().Call("addEventListener", "popstate", e.popstateListener)
+	console.Log("[Engine] popstate listener registered")
+
+	// Navigate to the current browser path on initial load
+	initialPath := js.Global().Get("location").Get("pathname").String()
+	console.Log("[Engine.Start] Initial path:", initialPath)
+	if initialPath == "" {
+		initialPath = "/"
+	}
+	return e.Navigate(initialPath)
 }
 
 // GetComponentForPath resolves a URL path to its component.
@@ -249,4 +277,14 @@ func (e *Engine) GetComponentForPath(path string) (runtime.Component, bool) {
 	// Create a new instance to return
 	leaf := targetRoute.Chain[len(targetRoute.Chain)-1]
 	return leaf.Factory(), true
+}
+
+// Cleanup releases resources held by the engine.
+// Call this when the engine is no longer needed to prevent memory leaks.
+func (e *Engine) Cleanup() {
+	if !e.popstateListener.IsUndefined() {
+		js.Global().Call("removeEventListener", "popstate", e.popstateListener)
+		e.popstateListener.Release()
+		console.Log("[Engine] popstate listener cleaned up")
+	}
 }
