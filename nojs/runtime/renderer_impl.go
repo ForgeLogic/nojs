@@ -262,7 +262,12 @@ func (r *RendererImpl) ReRenderSlot(slotParent Component) error {
 
 	// 2. Re-render the parent layout
 	// Its BodyContent field has been updated by the caller (router or child)
+	// CRITICAL: Push slotParent onto rendering stack to maintain consistent key generation
+	r.renderingStack = append(r.renderingStack, slotParent)
 	newParentVDOM := slotParent.Render(r)
+	// Pop from rendering stack after Render completes
+	r.renderingStack = r.renderingStack[:len(r.renderingStack)-1]
+
 	if newParentVDOM == nil {
 		return fmt.Errorf("slotParent.Render() returned nil")
 	}
