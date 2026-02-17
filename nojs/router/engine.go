@@ -81,8 +81,8 @@ func (e *Engine) navigateInternal(path string, skipPushState bool) error {
 
 	console.Log("[Engine.Navigate] Current path:", e.currentPath)
 
-	targetRoute, ok := e.routes[path]
-	if !ok {
+	targetRoute := e.findMatchingRoute(path)
+	if targetRoute == nil {
 		console.Error("[Engine.Navigate] No route found for path:", path)
 		return fmt.Errorf("no route for path: %s", path)
 	}
@@ -216,6 +216,74 @@ func (e *Engine) calculatePivot(targetChain []ComponentMetadata) int {
 
 	// All matched up to shorter chain length
 	return minLen
+}
+
+// findMatchingRoute searches for a route that matches the given path.
+// It iterates through all registered routes and checks if the pattern matches.
+// Returns nil if no matching route is found.
+func (e *Engine) findMatchingRoute(path string) *Route {
+	for _, route := range e.routes {
+		if e.matchesPattern(route.Path, path) {
+			return route
+		}
+	}
+	return nil
+}
+
+// matchesPattern checks if an actual path matches a route pattern.
+// The pattern can contain parameters in curly braces, e.g., "/blog/{year}".
+// Returns true if the path matches the pattern.
+//
+// Examples:
+//
+//	matchesPattern("/blog/{year}", "/blog/2026") returns true
+//	matchesPattern("/blog/{year}", "/blog/2026/extras") returns false
+//	matchesPattern("/users/{id}/posts/{postId}", "/users/42/posts/100") returns true
+func (e *Engine) matchesPattern(pattern, path string) bool {
+	// Normalize paths (remove trailing slashes for comparison)
+	pattern = strings.TrimSuffix(pattern, "/")
+	path = strings.TrimSuffix(path, "/")
+
+	// Handle root path specially
+	if pattern == "" {
+		pattern = "/"
+	}
+	if path == "" {
+		path = "/"
+	}
+
+	// Exact match for simple paths
+	if pattern == path {
+		return true
+	}
+
+	// Split into segments
+	patternParts := strings.Split(strings.Trim(pattern, "/"), "/")
+	pathParts := strings.Split(strings.Trim(path, "/"), "/")
+
+	// Must have same number of segments
+	if len(patternParts) != len(pathParts) {
+		return false
+	}
+
+	// Check each segment
+	for i := range patternParts {
+		patternSegment := patternParts[i]
+		pathSegment := pathParts[i]
+
+		// Check if this is a parameter placeholder
+		if strings.HasPrefix(patternSegment, "{") && strings.HasSuffix(patternSegment, "}") {
+			// This is a parameter - it matches any value
+			continue
+		}
+
+		// Not a parameter - must match exactly
+		if patternSegment != pathSegment {
+			return false
+		}
+	}
+
+	return true
 }
 
 // extractParams parses URL parameters from a path based on route pattern.

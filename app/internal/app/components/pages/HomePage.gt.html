@@ -13,6 +13,19 @@
     <p>Modal result: {LastModalResult}</p>
     <p>Is modal visible: {IsMyModalVisible}</p>
 
+    <div>
+        <h2>List demo</h2>
+        <ul>
+            {@for _, item := range Years trackBy item}
+                <li>
+                    <RouterLink Href="/blog/{item}">
+                        Blog of year {item}
+                    </RouterLink>
+                </li>
+            {@endfor}
+        </ul>
+    </div>
+
     <Modal 
         IsVisible="{IsMyModalVisible}"
         Title="An Important Message"
