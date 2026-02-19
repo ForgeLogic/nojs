@@ -1,0 +1,149 @@
+name: 🐛 Bug Report
+description: Report a bug to help us improve nojs
+title: "[BUG]: <Short description>"
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve nojs! Please provide details so we can squash this bug.
+        
+        **Before submitting:** Search existing issues to avoid duplicates.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the bug
+      description: A clear and concise description of what the bug is.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: error-type
+    attributes:
+      label: Error Type
+      description: When does the error occur?
+      options:
+        - Compile-time (AOT template compilation)
+        - Build-time (Go build / WASM generation)
+        - Runtime (Browser execution)
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happened? Include error messages, stack traces, or incorrect output.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: Provide minimal code snippets and build commands.
+      placeholder: |
+        1. Create a component with this .gt.html template:
+           ```html
+           <div>...</div>
+           ```
+        
+        2. Run build command:
+           ```bash
+           make full
+           ```
+        
+        3. Observe the error: ...
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: Operating System
+      description: e.g. Windows 11, macOS Sonoma, Ubuntu 22.04
+      placeholder: e.g. Windows 11 (WSL2)
+    validations:
+      required: true
+
+  - type: input
+    id: go-version
+    attributes:
+      label: Go Version
+      description: Run `go version` to find this
+      placeholder: e.g. go1.22.0
+    validations:
+      required: true
+
+  - type: input
+    id: framework-version
+    attributes:
+      label: nojs Framework Version
+      description: Git commit hash, tag, or branch name
+      placeholder: e.g. commit abc1234, v0.1.0, or main
+    validations:
+      required: true
+
+  - type: dropdown
+    id: build-mode
+    attributes:
+      label: Build Mode
+      description: How was the project built?
+      options:
+        - Development (make full)
+        - Production (make full-prod)
+        - Custom build
+        - N/A
+    validations:
+      required: true
+
+  - type: dropdown
+    id: browser
+    attributes:
+      label: Browser (if runtime error)
+      options:
+        - Chrome
+        - Firefox
+        - Safari
+        - Edge
+        - N/A (Not a runtime error)
+    validations:
+      required: false
+
+  - type: textarea
+    id: browser-console
+    attributes:
+      label: Browser Console Logs (if runtime error)
+      description: Open DevTools Console and paste any errors or warnings
+      placeholder: |
+        WebAssembly module loaded.
+        Error: ...
+      render: shell
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: Screenshots, full stack traces, links to reproduction repos, etc.
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I have searched existing issues to avoid duplicates
+          required: true
+        - label: I have provided a minimal reproduction case
+          required: true
+        - label: I am using a supported Go version (1.21+)
+          required: false
