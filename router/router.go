@@ -19,6 +19,7 @@ type Engine struct {
 	mu               sync.Mutex
 	currentPath      string
 	currentRoute     *Route
+	currentParams    map[string]string
 	activeChain      []ComponentMetadata
 	liveInstances    []runtime.Component // Parallel to activeChain; instances are reused
 	pivotPoint       int                 // First index where chain differs between routes
@@ -101,11 +102,23 @@ func (e *Engine) navigateInternal(path string, skipPushState bool) error {
 	// Calculate pivot point: first index where TypeID differs
 	pivot := e.calculatePivot(targetRoute.Chain)
 
-	console.Log("[Engine.Navigate] Pivot point:", pivot, "Chain length:", len(targetRoute.Chain))
+	console.Log("[Engine.Navigate] Pivot point (TypeID-based):", pivot, "Chain length:", len(targetRoute.Chain))
 
 	// Extract URL parameters from route pattern
 	params := e.extractParams(targetRoute.Path, path)
 	console.Log("[Engine.Navigate] Extracted params:", fmt.Sprintf("%v", params))
+
+	// If route parameters changed, force re-creation of the leaf component so that
+	// the factory receives the new params and OnParametersSet is triggered.
+	// Without this, same-pattern navigations (e.g. /demo/router/42 → /demo/router/go-wasm)
+	// would reuse the existing instance unchanged because the TypeIDs are identical.
+	if !mapsEqual(e.currentParams, params) && len(targetRoute.Chain) > 0 {
+		leafIdx := len(targetRoute.Chain) - 1
+		if pivot > leafIdx {
+			pivot = leafIdx
+		}
+		console.Log("[Engine.Navigate] Params changed — clamping pivot to:", pivot)
+	}
 
 	// Destroy volatile (new) component instances from pivot onwards
 	for i := pivot; i < len(e.liveInstances); i++ {
@@ -165,6 +178,7 @@ func (e *Engine) navigateInternal(path string, skipPushState bool) error {
 
 		e.currentPath = path
 		e.currentRoute = targetRoute
+		e.currentParams = params
 		e.activeChain = targetRoute.Chain
 		e.liveInstances = newInstances
 		e.pivotPoint = pivot
@@ -180,11 +194,25 @@ func (e *Engine) navigateInternal(path string, skipPushState bool) error {
 
 	e.currentPath = path
 	e.currentRoute = targetRoute
+	e.currentParams = params
 	e.activeChain = targetRoute.Chain
 	e.liveInstances = newInstances
 	e.pivotPoint = pivot
 
 	return nil
+}
+
+// mapsEqual returns true if two string maps have identical keys and values.
+func mapsEqual(a, b map[string]string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for k, v := range a {
+		if b[k] != v {
+			return false
+		}
+	}
+	return true
 }
 
 // calculatePivot finds the first index where current and target chains differ by TypeID.
