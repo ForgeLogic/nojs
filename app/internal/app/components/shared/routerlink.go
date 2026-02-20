@@ -22,6 +22,8 @@ import (
 //	<RouterLink Href="/about">
 //	    <span>Go to About Page</span>
 //	</RouterLink>
+//
+// This component belongs to router — waiting on compiler dependency discovery.
 type RouterLink struct {
 	runtime.ComponentBase
 
