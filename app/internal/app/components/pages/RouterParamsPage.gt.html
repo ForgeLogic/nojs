@@ -3,7 +3,7 @@
         <div class="render-badge">Renders: {RenderCount}</div>
         <h1>🔗 Router Params</h1>
         <p>
-            Route parameters are extracted from URL patterns like <span class="code">/demo/router/:id</span>
+            Route parameters are extracted from URL patterns like <span class="code">/demo/router/{id}</span>
             and passed to the component factory. Change the URL or click a link below — the layout never
             remounts (pivot algorithm), only this page component is replaced.
         </p>
@@ -13,7 +13,7 @@
         <div class="demo-box">
             <div class="section-title">Current Route Parameter</div>
             <div class="route-display">
-                <div class="route-path">Route: /demo/router/<span class="slot-highlight">:id</span></div>
+                <div class="route-path">Route: /demo/router/<span class="slot-highlight">{ID}</span></div>
                 <div class="route-param-value">{ID}</div>
             </div>
         </div>
