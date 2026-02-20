@@ -578,16 +578,23 @@ func patchElement(domElement js.Value, oldVNode, newVNode *VNode) {
 			if oldVNode.Content != newVNode.Content {
 				domElement.Set("textContent", newVNode.Content)
 			}
-		} else if oldVNode.Content != "" {
-			// New VNode has children but old had text content set via textContent.
-			// Clear the text so children can be patched in cleanly without the
-			// old text node remaining in the DOM alongside the new child elements.
-			domElement.Set("textContent", "")
+			// Release callbacks on old children whose DOM nodes were cleared by textContent,
+			// then return — calling patchChildren would remove the text node we just created.
+			for _, child := range oldVNode.Children {
+				deepReleaseCallbacks(child)
+			}
+			return
+		} else {
+			if oldVNode.Content != "" {
+				// New VNode has children but old had text content set via textContent.
+				// Clear the text so children can be patched in cleanly without the
+				// old text node remaining in the DOM alongside the new child elements.
+				domElement.Set("textContent", "")
+			}
+			// Patch children
+			patchChildren(domElement, oldVNode.Children, newVNode.Children)
 		}
 	}
-
-	// Patch children
-	patchChildren(domElement, oldVNode.Children, newVNode.Children)
 }
 
 // patchAttributes updates the attributes of a DOM element.
