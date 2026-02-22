@@ -196,6 +196,7 @@ func (c *Counter) Decrement() {
 Detailed guides are available in the [`nojs/documentation/`](nojs/documentation/) directory:
 
 - **[NoJS Manifesto](MANIFESTO.md)** - The principles and philosophy behind every design decision
+- **[Design Decisions](nojs/documentation/DESIGN_DECISIONS.md)** - Why certain constraints exist and what trade-offs were made
 - **[List Rendering](nojs/documentation/LIST_RENDERING.md)** - Working with dynamic lists and `trackBy` optimization
 - **[Router Architecture](nojs/documentation/ROUTER_ARCHITECTURE.md)** - SPA routing and navigation
 - **[Router Layouts](nojs/documentation/ROUTER_ENGINE_LAYOUTS.md)** - Nested layouts and content projection
