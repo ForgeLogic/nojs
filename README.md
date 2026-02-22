@@ -2,7 +2,7 @@
 
 [![Go Version](https://img.shields.io/badge/Go-1.25%2B-00ADD8?logo=go)](https://go.dev/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-[![Status](https://img.shields.io/badge/Status-MVP%2FExperimental-yellow)](https://github.com/vcrobe/nojs)
+[![Status](https://img.shields.io/badge/Status-MVP%2FExperimental-yellow)](https://github.com/ForgeLogic/nojs)
 
 ### The Type-Safe Web Framework for Go Purists
 
@@ -61,7 +61,7 @@ Clone the repository:
 Bash
 
 ```
-git clone https://github.com/vcrobe/nojs.git
+git clone https://github.com/ForgeLogic/nojs.git
 cd nojs
 ```
 
@@ -73,7 +73,7 @@ The repository is organized as a Go workspace:
 - **`app/`** - Example application demonstrating framework features
 - **`go.work`** - Workspace configuration linking both modules
 
-The framework (`github.com/vcrobe/nojs`) and app (`github.com/vcrobe/app`) are separate modules that work together during development.
+The framework (`github.com/ForgeLogic/nojs`) and app (`github.com/ForgeLogic/app`) are separate modules that work together during development.
 
 ### 3. Compilation
 
@@ -136,7 +136,7 @@ The compiler scans directories for `*.gt.html` files and auto-generates correspo
     make full
     
     # Or run the compiler directly
-    go run github.com/vcrobe/nojs/cmd/nojs-compiler -in ./app/internal/app/components
+    go run github.com/ForgeLogic/nojs/cmd/nojs-compiler -in ./app/internal/app/components
     ```
     
     This generates `MyComponent.generated.go` with the `Render()` method.
@@ -158,7 +158,7 @@ Here's a simple counter component to illustrate the framework:
 ```go
 package components
 
-import "github.com/vcrobe/nojs/runtime"
+import "github.com/ForgeLogic/nojs/runtime"
 
 type Counter struct {
     runtime.ComponentBase

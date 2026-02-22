@@ -1,6 +1,6 @@
 package runtime
 
-import "github.com/vcrobe/nojs/vdom"
+import "github.com/ForgeLogic/nojs/vdom"
 
 // Renderer defines the minimal set of runtime operations used by generated Render() code.
 // This interface has NO build tags, making it available to both WASM and native test builds.

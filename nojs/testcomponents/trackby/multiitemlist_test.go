@@ -6,8 +6,8 @@ package trackby
 import (
 	"testing"
 
-	"github.com/vcrobe/nojs/testcomponents"
-	"github.com/vcrobe/nojs/vdom"
+	"github.com/ForgeLogic/nojs/testcomponents"
+	"github.com/ForgeLogic/nojs/vdom"
 )
 
 // TestMultiItemList_MultipleChildrenPerIteration_InitialRender verifies that a loop with multiple

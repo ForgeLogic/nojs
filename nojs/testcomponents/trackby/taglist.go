@@ -1,6 +1,6 @@
 package trackby
 
-import "github.com/vcrobe/nojs/runtime"
+import "github.com/ForgeLogic/nojs/runtime"
 
 // TagList demonstrates trackBy with primitive string slice
 type TagList struct {

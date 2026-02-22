@@ -8,9 +8,9 @@ import (
 	"sync"
 	"syscall/js"
 
-	"github.com/vcrobe/nojs/console"
-	"github.com/vcrobe/nojs/runtime"
-	"github.com/vcrobe/nojs/vdom"
+	"github.com/ForgeLogic/nojs/console"
+	"github.com/ForgeLogic/nojs/runtime"
+	"github.com/ForgeLogic/nojs/vdom"
 )
 
 // Engine manages routing with the app shell pattern and pivot-based layout reuse.

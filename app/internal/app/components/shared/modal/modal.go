@@ -1,8 +1,8 @@
 package modal
 
 import (
-	"github.com/vcrobe/nojs/runtime"
-	"github.com/vcrobe/nojs/vdom"
+	"github.com/ForgeLogic/nojs/runtime"
+	"github.com/ForgeLogic/nojs/vdom"
 )
 
 type Modal struct {

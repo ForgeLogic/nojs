@@ -1,6 +1,6 @@
 package trackby
 
-import "github.com/vcrobe/nojs/runtime"
+import "github.com/ForgeLogic/nojs/runtime"
 
 // Product represents an item with an ID for trackBy
 type Product struct {

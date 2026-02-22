@@ -4,7 +4,7 @@
 package testcomponents
 
 import (
-	"github.com/vcrobe/nojs/vdom"
+	"github.com/ForgeLogic/nojs/vdom"
 )
 
 // TestComponent is a sample framework component that demonstrates

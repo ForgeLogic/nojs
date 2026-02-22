@@ -5,9 +5,9 @@ package router
 import (
 	"fmt"
 
-	"github.com/vcrobe/nojs/console"
-	"github.com/vcrobe/nojs/runtime"
-	"github.com/vcrobe/nojs/vdom"
+	"github.com/ForgeLogic/nojs/console"
+	"github.com/ForgeLogic/nojs/runtime"
+	"github.com/ForgeLogic/nojs/vdom"
 )
 
 // AppShell is a stable root component that holds persistent layouts (app shell)

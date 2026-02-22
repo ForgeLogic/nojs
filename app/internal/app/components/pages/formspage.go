@@ -3,8 +3,8 @@
 package pages
 
 import (
-	"github.com/vcrobe/nojs/events"
-	"github.com/vcrobe/nojs/runtime"
+	"github.com/ForgeLogic/nojs/events"
+	"github.com/ForgeLogic/nojs/runtime"
 )
 
 // FormsPage demonstrates event binding and live data binding with @oninput / @onchange.

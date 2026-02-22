@@ -1,7 +1,7 @@
 package conditionalform
 
 import (
-	"github.com/vcrobe/nojs/runtime"
+	"github.com/ForgeLogic/nojs/runtime"
 )
 
 // ConditionalForm is a minimal test component that mirrors the FormsPage

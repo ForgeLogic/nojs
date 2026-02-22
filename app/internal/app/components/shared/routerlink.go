@@ -5,9 +5,9 @@ package shared
 import (
 	"fmt"
 
-	"github.com/vcrobe/nojs/events"
-	"github.com/vcrobe/nojs/runtime"
-	"github.com/vcrobe/nojs/vdom"
+	"github.com/ForgeLogic/nojs/events"
+	"github.com/ForgeLogic/nojs/runtime"
+	"github.com/ForgeLogic/nojs/vdom"
 )
 
 // RouterLink is a component for client-side navigation.

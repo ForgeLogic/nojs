@@ -3,8 +3,8 @@
 package pages
 
 import (
-	"github.com/vcrobe/app/internal/app/components/shared/modal"
-	"github.com/vcrobe/nojs/runtime"
+	"github.com/ForgeLogic/app/internal/app/components/shared/modal"
+	"github.com/ForgeLogic/nojs/runtime"
 )
 
 // SlotsPage demonstrates content projection via the []*vdom.VNode slot pattern.

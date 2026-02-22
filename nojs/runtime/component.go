@@ -1,6 +1,6 @@
 package runtime
 
-import "github.com/vcrobe/nojs/vdom"
+import "github.com/ForgeLogic/nojs/vdom"
 
 // Component interface defines the structure for all components in the framework.
 // This interface has NO build tags, making it available to both WASM and native test builds.

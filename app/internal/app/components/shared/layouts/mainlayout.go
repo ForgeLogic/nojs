@@ -1,9 +1,9 @@
 package layouts
 
 import (
-	"github.com/vcrobe/app/internal/app/context"
-	"github.com/vcrobe/nojs/runtime"
-	"github.com/vcrobe/nojs/vdom"
+	"github.com/ForgeLogic/app/internal/app/context"
+	"github.com/ForgeLogic/nojs/runtime"
+	"github.com/ForgeLogic/nojs/vdom"
 )
 
 // RootLayout is the root layout component for the application.

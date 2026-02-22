@@ -3,7 +3,7 @@
 package pages
 
 import (
-	"github.com/vcrobe/nojs/runtime"
+	"github.com/ForgeLogic/nojs/runtime"
 )
 
 var routerDemoIDs = []string{"42", "go-wasm", "hello", "framework", "nojs", "2026"}

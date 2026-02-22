@@ -1,4 +1,4 @@
-module github.com/vcrobe/nojs
+module github.com/ForgeLogic/nojs
 
 go 1.25.1
 

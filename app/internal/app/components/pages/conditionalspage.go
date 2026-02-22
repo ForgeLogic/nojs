@@ -3,7 +3,7 @@
 package pages
 
 import (
-	"github.com/vcrobe/nojs/runtime"
+	"github.com/ForgeLogic/nojs/runtime"
 )
 
 // ConditionalsPage demonstrates {@if}/{@else} conditional rendering.

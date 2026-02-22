@@ -1,7 +1,7 @@
 package databinding
 
 import (
-	"github.com/vcrobe/nojs/runtime"
+	"github.com/ForgeLogic/nojs/runtime"
 )
 
 // Counter is a simple test component that demonstrates data binding.

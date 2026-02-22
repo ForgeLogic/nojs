@@ -1,9 +1,9 @@
-module github.com/vcrobe/nojs-compiler
+module github.com/ForgeLogic/nojs-compiler
 
 go 1.25.1
 
 require (
-	github.com/vcrobe/nojs v0.0.0
+	github.com/ForgeLogic/nojs v0.0.0
 	golang.org/x/net v0.47.0
 	golang.org/x/tools v0.39.0
 )

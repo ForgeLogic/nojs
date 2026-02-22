@@ -1,8 +1,8 @@
 package testcomponents
 
 import (
-	"github.com/vcrobe/nojs/runtime"
-	"github.com/vcrobe/nojs/vdom"
+	"github.com/ForgeLogic/nojs/runtime"
+	"github.com/ForgeLogic/nojs/vdom"
 )
 
 // TestRenderer is a minimal test harness that implements runtime.Renderer

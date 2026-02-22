@@ -6,7 +6,7 @@ package databinding
 import (
 	"testing"
 
-	"github.com/vcrobe/nojs/testcomponents"
+	"github.com/ForgeLogic/nojs/testcomponents"
 )
 
 // TestDataBinding_InitialRender verifies that data binding correctly

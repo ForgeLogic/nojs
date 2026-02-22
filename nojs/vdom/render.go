@@ -6,7 +6,7 @@ package vdom
 import (
 	"syscall/js"
 
-	"github.com/vcrobe/nojs/console"
+	"github.com/ForgeLogic/nojs/console"
 )
 
 // eventBinding tracks a DOM listener so it can be removed before releasing the js.Func.

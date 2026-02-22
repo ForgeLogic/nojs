@@ -12,7 +12,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/vcrobe/nojs/events"
+	"github.com/ForgeLogic/nojs/events"
 	"golang.org/x/net/html"
 	"golang.org/x/tools/go/packages"
 )
@@ -50,7 +50,7 @@ type componentInfo struct {
 	PascalName    string
 	LowercaseName string
 	PackageName   string
-	ImportPath    string // Full import path (e.g., "github.com/vcrobe/nojs/appcomponents")
+	ImportPath    string // Full import path (e.g., "github.com/ForgeLogic/nojs/appcomponents")
 	Schema        componentSchema
 }
 
@@ -647,7 +647,7 @@ func discoverAndInspectComponents(rootDir string) ([]componentInfo, error) {
 				PascalName:    pascalName,
 				LowercaseName: strings.ToLower(pascalName),
 				PackageName:   pkg.Name,    // Use the package name from the loader.
-				ImportPath:    pkg.PkgPath, // Full import path (e.g., "github.com/vcrobe/nojs/appcomponents")
+				ImportPath:    pkg.PkgPath, // Full import path (e.g., "github.com/ForgeLogic/nojs/appcomponents")
 				Schema:        schema,
 			})
 
@@ -1004,10 +1004,10 @@ import (
 	"fmt"
 	"strconv" // Added for type conversions
 
-	"github.com/vcrobe/nojs/console"
-	"github.com/vcrobe/nojs/events"
-	"github.com/vcrobe/nojs/runtime"
-	"github.com/vcrobe/nojs/vdom"%[5]s
+	"github.com/ForgeLogic/nojs/console"
+	"github.com/ForgeLogic/nojs/events"
+	"github.com/ForgeLogic/nojs/runtime"
+	"github.com/ForgeLogic/nojs/vdom"%[5]s
 )
 
 // ApplyProps copies props from source to the receiver, preserving internal state.

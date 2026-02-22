@@ -5,7 +5,7 @@ package conditionalform
 import (
 	"testing"
 
-	"github.com/vcrobe/nojs/testcomponents"
+	"github.com/ForgeLogic/nojs/testcomponents"
 )
 
 // previewDiv extracts the conditional div (live-preview or live-preview muted)

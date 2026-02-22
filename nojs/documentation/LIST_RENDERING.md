@@ -213,7 +213,7 @@ No warning code is generated - cleaner output, smaller bundle.
 ```go
 package appcomponents
 
-import "github.com/vcrobe/nojs/runtime"
+import "github.com/ForgeLogic/nojs/runtime"
 
 type User struct {
     ID   int

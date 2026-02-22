@@ -111,7 +111,7 @@ go build ./cmd/nojs-compiler
 
 # Compile templates (from app directory)
 cd ../app
-go run github.com/vcrobe/nojs/cmd/nojs-compiler -in ./components -dev
+go run github.com/ForgeLogic/nojs/cmd/nojs-compiler -in ./components -dev
 
 # Build WASM
 GOOS=js GOARCH=wasm go build -o wwwroot/main.wasm

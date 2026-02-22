@@ -1,7 +1,7 @@
 package shared
 
 import (
-	"github.com/vcrobe/nojs/runtime"
+	"github.com/ForgeLogic/nojs/runtime"
 )
 
 type PageNotFound struct {
