@@ -69,11 +69,15 @@ cd nojs
 
 The repository is organized as a Go workspace:
 
-- **`nojs/`** - Core framework code (compiler, runtime, VDOM, router)
+- **`nojs/`** - Core framework code (runtime, VDOM)
+- **`compiler/`** - AOT template compiler (`nojsc`), maintained as a separate module
+- **`router/`** - SPA routing engine, maintained as a separate module
 - **`app/`** - Example application demonstrating framework features
-- **`go.work`** - Workspace configuration linking both modules
+- **`go.work`** - Workspace configuration linking all modules
 
-The framework (`github.com/ForgeLogic/nojs`) and app (`github.com/ForgeLogic/app`) are separate modules that work together during development.
+The framework (`github.com/ForgeLogic/nojs`), compiler (`github.com/ForgeLogic/nojs/compiler`), router (`github.com/ForgeLogic/nojs/router`), and app (`github.com/ForgeLogic/app`) are separate modules that work together during development.
+
+> **Note:** The compiler, router, and demo app are currently co-located in this repository for convenience during active development. Once each reaches a stable API, it will be moved to its own dedicated repository.
 
 ### 3. Compilation
 
