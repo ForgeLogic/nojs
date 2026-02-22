@@ -1,0 +1,14 @@
+# Copy this file to Makefile.local and adjust to your preferences.
+# Makefile.local is gitignored — your changes won't affect other developers.
+
+# Example: Use Node.js serve instead of Python
+# SERVE_CMD := npx serve -l 9090
+
+# Example: Use a different port
+# SERVE_CMD := python3 -m http.server 3000
+
+# Example: Use a different serve directory
+# SERVE_DIR := ./dist
+
+# Example: Use a different WASM output path
+# WASM_OUTPUT := ./dist/main.wasm

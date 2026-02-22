@@ -7,6 +7,13 @@ WASM_OUTPUT := ./app/wwwroot/main.wasm
 MAIN_PATH := ./app/internal/app
 BUILD_TAGS := -tags=dev
 
+# Default serve command (override in Makefile.local)
+SERVE_CMD := python3 -m http.server 9090
+SERVE_DIR := ./app/wwwroot
+
+# Load local developer overrides if present (gitignored)
+-include Makefile.local
+
 # Default target
 .DEFAULT_GOAL := help
 
@@ -56,5 +63,5 @@ clean:
 	@echo "✅ Clean complete!"
 
 serve:
-	@echo "🚀 Starting development server on port 9090..."
-	@cd ./app/wwwroot && python3 -m http.server 9090
+	@echo "🚀 Starting development server..."
+	@cd $(SERVE_DIR) && $(SERVE_CMD)

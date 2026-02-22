@@ -1,6 +1,9 @@
 # Ignore VSCode configuration files
 .vscode
 
+# Local developer Makefile overrides
+Makefile.local
+
 # Ignore all .wasm files
 *.wasm
 
