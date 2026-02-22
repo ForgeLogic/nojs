@@ -48,40 +48,47 @@ Every feature in **nojs** is guided by principles designed for developers who va
 ### Prerequisites
 
 - Go 1.25+
-    
 - Make
-    
 - Python 3 (required for `make serve`, or use any static file server of your choice)
-    
 
-### 1. Installation
+---
 
-Clone the repository:
+### Running the demo app
 
-Bash
+Clone the repository and build:
 
-```
+```bash
 git clone https://github.com/ForgeLogic/nojs.git
 cd nojs
+make full
+make serve
 ```
 
-### 2. Project Structure
+Visit `http://localhost:9090` — the demo app showcases routing, components, list rendering, and forms.
+
+---
+
+### Starting your own project
+
+See **[INSTALLATION.md](INSTALLATION.md)** for a step-by-step guide to creating a new project using the demo app as a scaffold.
+
+---
+
+### Repository Structure
 
 The repository is organized as a Go workspace:
 
-- **`nojs/`** - Core framework code (runtime, VDOM)
-- **`compiler/`** - AOT template compiler (`nojsc`), maintained as a separate module
-- **`router/`** - SPA routing engine, maintained as a separate module
-- **`app/`** - Example application demonstrating framework features
-- **`go.work`** - Workspace configuration linking all modules
+- **`nojs/`** — Core framework code (runtime, VDOM)
+- **`compiler/`** — AOT template compiler (`nojsc`), maintained as a separate module
+- **`router/`** — SPA routing engine, maintained as a separate module
+- **`app/`** — Example application demonstrating framework features (also the recommended project scaffold)
+- **`go.work`** — Workspace configuration linking all modules
 
 The framework (`github.com/ForgeLogic/nojs`), compiler (`github.com/ForgeLogic/nojs/compiler`), router (`github.com/ForgeLogic/nojs/router`), and app (`github.com/ForgeLogic/app`) are separate modules that work together during development.
 
 > **Note:** The compiler, router, and demo app are currently co-located in this repository for convenience during active development. Once each reaches a stable API, it will be moved to its own dedicated repository.
 
-### 3. Compilation
-
-The project uses a `Makefile` to manage the build pipeline.
+### Build commands
 
 | **Command**      | **Action**                                       |
 | ---------------- | ------------------------------------------------ |
@@ -91,29 +98,7 @@ The project uses a `Makefile` to manage the build pipeline.
 | `make serve`     | Starts development server on port 9090           |
 | `make clean`     | Removes generated WASM binaries                  |
 
-### 4. Running Locally
-
-Build and start the development server:
-
-Bash
-
-```
-make full
-make serve
-```
-
-Visit `http://localhost:9090`.
-
-**Alternative (manual):** If you prefer to use your own server, the static files are in `app/wwwroot/`:
-
-Bash
-
-```
-cd app/wwwroot
-python3 -m http.server 9090
-```
-
-> **Pro Tip:** Enable **"Disable cache"** in your browser's DevTools Network tab to ensure the WASM module reloads on every refresh.
+> **Tip:** Enable **"Disable cache"** in your browser's DevTools Network tab to ensure the WASM module reloads on every refresh.
 
 ---
 
@@ -195,13 +180,15 @@ func (c *Counter) Decrement() {
 
 Detailed guides are available in the [`nojs/documentation/`](nojs/documentation/) directory:
 
-- **[NoJS Manifesto](MANIFESTO.md)** - The principles and philosophy behind every design decision
-- **[Design Decisions](nojs/documentation/DESIGN_DECISIONS.md)** - Why certain constraints exist and what trade-offs were made
-- **[List Rendering](nojs/documentation/LIST_RENDERING.md)** - Working with dynamic lists and `trackBy` optimization
-- **[Router Architecture](nojs/documentation/ROUTER_ARCHITECTURE.md)** - SPA routing and navigation
-- **[Router Layouts](nojs/documentation/ROUTER_ENGINE_LAYOUTS.md)** - Nested layouts and content projection
-- **[Inline Conditionals](nojs/documentation/INLINE_CONDITIONALS.md)** - Conditional rendering in templates
-- **[Text Node Rendering](nojs/documentation/TEXT_NODE_RENDERING.md)** - How text content is processed
+- **[Installation Guide](INSTALLATION.md)** — How to create a new project using nojs
+- **[Quick Guide](nojs/documentation/QUICK_GUIDE.md)** — Practical reference for all framework features
+- **[NoJS Manifesto](MANIFESTO.md)** — The principles and philosophy behind every design decision
+- **[Design Decisions](nojs/documentation/DESIGN_DECISIONS.md)** — Why certain constraints exist and what trade-offs were made
+- **[List Rendering](nojs/documentation/LIST_RENDERING.md)** — Working with dynamic lists and `trackBy` optimization
+- **[Router Architecture](nojs/documentation/ROUTER_ARCHITECTURE.md)** — SPA routing and navigation
+- **[Router Layouts](nojs/documentation/ROUTER_ENGINE_LAYOUTS.md)** — Nested layouts and content projection
+- **[Inline Conditionals](nojs/documentation/INLINE_CONDITIONALS.md)** — Conditional rendering in templates
+- **[Text Node Rendering](nojs/documentation/TEXT_NODE_RENDERING.md)** — How text content is processed
 
 ---
 

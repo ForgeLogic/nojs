@@ -2,6 +2,8 @@
 
 A practical reference for using each implemented feature. Examples show the minimal, idiomatic usage pattern for each area.
 
+> **New to nojs?** Start with the [Installation Guide](../../INSTALLATION.md) to scaffold a new project, then come back here as a feature reference.
+
 ---
 
 ## 1. Core Runtime
