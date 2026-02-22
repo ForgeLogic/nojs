@@ -38,7 +38,8 @@ Every feature in **nojs** is guided by principles designed for developers who va
 - **Simplicity Through Focus:** A lean, focused API that avoids complexity for little practical benefit.
     
 - **Unopinionated Foundation:** We provide the core (rendering, lifecycle, type-safety) but leave state management and project structure to you.
-    
+
+> For the full principles behind these decisions, read the [NoJS Manifesto](MANIFESTO.md).
 
 ---
 
@@ -190,6 +191,7 @@ func (c *Counter) Decrement() {
 
 Detailed guides are available in the [`nojs/documentation/`](nojs/documentation/) directory:
 
+- **[NoJS Manifesto](MANIFESTO.md)** - The principles and philosophy behind every design decision
 - **[List Rendering](nojs/documentation/LIST_RENDERING.md)** - Working with dynamic lists and `trackBy` optimization
 - **[Router Architecture](nojs/documentation/ROUTER_ARCHITECTURE.md)** - SPA routing and navigation
 - **[Router Layouts](nojs/documentation/ROUTER_ENGINE_LAYOUTS.md)** - Nested layouts and content projection
