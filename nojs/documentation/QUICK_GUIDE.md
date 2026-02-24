@@ -6,6 +6,63 @@ A practical reference for using each implemented feature. Examples show the mini
 
 ---
 
+## Table of Contents
+
+1. [Core Runtime](#1-core-runtime)
+   - [Defining a Component](#defining-a-component)
+   - [StateHasChanged](#statehaschanged)
+   - [Navigate](#navigate)
+   - [Prop Updates via ApplyProps](#prop-updates-via-applyprops)
+   - [Instance Caching](#instance-caching)
+2. [Component Lifecycle](#2-component-lifecycle)
+   - [OnMount](#onmount--run-once-before-first-render)
+   - [OnParametersSet](#onparametersset--run-before-every-render-including-first)
+   - [OnUnmount](#onunmount--run-once-when-removed-from-the-tree)
+   - [Dev vs Prod mode](#dev-vs-prod-mode)
+3. [Signals](#3-signals)
+   - [Declaring signals](#declaring-signals)
+   - [Reading and writing](#reading-and-writing)
+   - [Subscribing to changes](#subscribing-to-changes)
+4. [Virtual DOM (VDOM)](#4-virtual-dom-vdom)
+   - [Helper Constructors](#helper-constructors)
+   - [Supported Elements](#supported-elements)
+   - [Boolean Attributes](#boolean-attributes)
+   - [Mounting to the DOM](#mounting-to-the-dom)
+5. [VDOM Diffing & Patching](#5-vdom-diffing--patching)
+6. [Event System](#6-event-system)
+   - [Handling Events in Hand-Written Components](#handling-events-in-hand-written-components)
+   - [Adapter Functions](#adapter-functions)
+   - [Event Arg Structs](#event-arg-structs)
+   - [In Templates (AOT)](#in-templates-aot)
+7. [AOT Compiler](#7-aot-compiler)
+   - [File Convention](#file-convention)
+   - [Data Binding](#data-binding)
+   - [Ternary Expressions](#ternary-expressions)
+   - [Boolean Attribute Shorthand](#boolean-attribute-shorthand)
+   - [Conditional Rendering](#conditional-rendering)
+   - [List Rendering](#list-rendering)
+   - [Event Binding in Templates](#event-binding-in-templates)
+   - [Supported HTML Elements in Templates](#supported-html-elements-in-templates)
+   - [Compile-Time Validation](#compile-time-validation)
+8. [Content Projection (Slots)](#8-content-projection-slots)
+   - [Defining a Layout with a Slot](#defining-a-layout-with-a-slot)
+   - [Using a Layout as a Parent](#using-a-layout-as-a-parent)
+9. [Router](#9-router)
+   - [Registering Routes](#registering-routes)
+   - [Wiring the Router in main()](#wiring-the-router-in-main)
+   - [Programmatic Navigation](#programmatic-navigation)
+   - [Layout Reuse (Pivot Algorithm)](#layout-reuse-pivot-algorithm)
+   - [RouterLink Component](#routerlink-component)
+10. [Build System](#10-build-system)
+11. [JS ↔ Go Interop](#11-js--go-interop)
+    - [Exporting a Go Function to JavaScript](#exporting-a-go-function-to-javascript)
+    - [Calling a JavaScript Function from Go](#calling-a-javascript-function-from-go)
+    - [Keeping the WASM Runtime Alive](#keeping-the-wasm-runtime-alive)
+    - [Browser API Wrappers](#browser-api-wrappers)
+    - [wasm_exec.js and core.js](#wasm_execjs-and-corejs)
+
+---
+
 ## 1. Core Runtime
 
 ### Defining a Component
