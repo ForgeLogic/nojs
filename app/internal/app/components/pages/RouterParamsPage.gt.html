@@ -24,8 +24,9 @@
                 <RouterLink Href="/demo/router/42">id = 42</RouterLink>
                 <RouterLink Href="/demo/router/go-wasm">id = go-wasm</RouterLink>
                 <RouterLink Href="/demo/router/hello">id = hello</RouterLink>
-                <RouterLink Href="/demo/router/nojs">id = nojs</RouterLink>
                 <RouterLink Href="/demo/router/framework">id = framework</RouterLink>
+                <RouterLink Href="/demo/router/nojs">id = nojs</RouterLink>
+                <RouterLink Href="/demo/router/2026">id = 2026</RouterLink>
             </div>
         </div>
 
@@ -34,6 +35,9 @@
             <p style="font-size: 14px; color: var(--muted); margin-bottom: 14px;">
                 Call <span class="code">c.Navigate(path)</span> from any component method.
             </p>
+            <div class="note-box" style="background-color: rgba(255, 193, 7, 0.1); border-left: 3px solid var(--accent); padding: 12px; margin: 12px 0; font-size: 13px; color: var(--text-secondary);">
+                <strong>Note:</strong> <span class="code">RenderCount</span> and <span class="code">NextIDIndex</span> use global signals to persist their values across navigation. Without signals, these values would be lost when the router re-renders this component after route changes—component state is destroyed and recreated with each route transition.
+            </div>
             <button @onclick="GoToNext" class="btn-primary">Navigate to Next ID</button>
         </div>
 
