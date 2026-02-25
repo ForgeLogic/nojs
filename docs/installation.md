@@ -116,6 +116,11 @@ Open **http://localhost:9090** in your browser. The console should print `WebAss
 | `make wasm`      | Rebuild WASM only — fast refresh, skips templates    |
 | `make serve`     | Start dev server on port 9090                        |
 | `make clean`     | Remove generated `main.wasm`                         |
+| `make lint-install` | Install golangci-lint v2.10.1 to `$GOPATH/bin`   |
+| `make lint`      | Run golangci-lint on compiler and nojs modules       |
+| `make docs-install` | Install MkDocs dependencies to `.venv-docs`      |
+| `make docs-build` | Build static documentation site to `site/` directory |
+| `make docs-serve` | Run local MkDocs server (typically http://localhost:8000) |
 
 > **When to use `make wasm` vs `make full`:**  
 > Use `make wasm` when you only changed `.go` files. Use `make full` when you created or modified any `.gt.html` template — templates must be recompiled before the WASM binary is built.
@@ -131,6 +136,74 @@ Open **http://localhost:9090** in your browser. The console should print `WebAss
 | `wasm_exec.js` errors after Go upgrade | Re-copy from `$(go env GOROOT)/misc/wasm/wasm_exec.js` |
 | Exported Go function is `undefined` in JS | Ensure `main.go` registered it with `js.Global().Set(...)` and WASM was rebuilt |
 | Template changes not reflected | Run `make full` — templates must be recompiled before `make wasm` |
+
+---
+
+## Installing and running the linter
+
+The nojs framework uses **golangci-lint** to enforce code quality across its modules.
+
+### Install the linter
+
+```bash
+make lint-install
+```
+
+This installs [golangci-lint](https://golangci-lint.run/) v2.10.1 to your Go bin directory (`$GOPATH/bin`).
+
+> **Note:** You only need to run this once. The linter is persisted in your Go environment.
+
+### Run the linter
+
+```bash
+make lint
+```
+
+This runs golangci-lint against the `compiler` and `nojs` modules. The linter checks for:
+- Code style violations
+- Potential bugs and inefficiencies
+- Naming conventions
+- Unused variables and imports
+
+### Linter configuration
+
+golangci-lint reads its configuration from `.golangci.yml` in the module root (if present). Each module may have its own linter settings.
+
+---
+
+## Installing and running the documentation server
+
+The nojs documentation is built with **MkDocs** and can be served locally for development and review.
+
+### Install documentation dependencies
+
+```bash
+make docs-install
+```
+
+This creates a Python virtual environment (`.venv-docs`) and installs the dependencies listed in `requirements-docs.txt`. This only needs to be done once.
+
+> **Prerequisites:** Python 3.8+ must be installed on your system.
+
+### Run the documentation server
+
+```bash
+make docs-serve
+```
+
+This starts a local MkDocs development server, typically on **http://localhost:8000**. The server watches for changes and automatically rebuilds the documentation as you edit markdown files.
+
+> **Tip:** Open your browser to the displayed URL (usually http://localhost:8000) to view the docs. The page will auto-refresh on edits.
+
+### Build the documentation site
+
+If you want to generate a static HTML site without serving it:
+
+```bash
+make docs-build
+```
+
+This builds the documentation to the `site/` directory with strict mode enabled (fails on errors).
 
 ---
 
