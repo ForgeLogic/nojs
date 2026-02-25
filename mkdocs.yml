@@ -36,16 +36,16 @@ nav:
   - Home: index.md
   - Getting Started: getting-started.md
   - Installation: installation.md
-  - Architecture:
-      - Runtime Architecture: architecture/runtime-architecture.md
-      - Router Architecture: architecture/router-architecture.md
-      - Router Layouts: architecture/router-layouts.md
   - Guides:
       - Quick Guide: guides/quick-guide.md
       - List Rendering: guides/list-rendering.md
       - Inline Conditionals: guides/inline-conditionals.md
-      - Signals: guides/signals.md
       - Text Node Rendering: guides/text-node-rendering.md
+      - Signals: guides/signals.md
+  - Architecture:
+      - Runtime Architecture: architecture/runtime-architecture.md
+      - Router Architecture: architecture/router-architecture.md
+      - Router Layouts: architecture/router-layouts.md
   - Design:
       - Manifesto: design/manifesto.md
       - Design Decisions: design/design-decisions.md
