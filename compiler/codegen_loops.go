@@ -17,8 +17,6 @@ func generateForLoopCode(n *html.Node, receiver string, componentMap map[string]
 	rangeExpr := ""
 	trackByExpr := ""
 
-	error
-
 	for _, attr := range n.Attr {
 		switch attr.Key {
 		case "data-index":
@@ -29,6 +27,8 @@ func generateForLoopCode(n *html.Node, receiver string, componentMap map[string]
 			rangeExpr = attr.Val
 		case "data-trackby":
 			trackByExpr = attr.Val
+		default:
+			// Ignore other attributes
 		}
 	}
 
