@@ -74,7 +74,7 @@ This is the first experimental release of **nojs**, a type-safe web framework fo
 ##### Documentation
 - **Framework Philosophy**: [Manifesto](https://forgelogic.github.io/nojs/design/manifesto/) explains core principles and design philosophy
 - **Quick Start Guide**: [Quick Guide](https://forgelogic.github.io/nojs/guides/quick-guide/) covers all implemented features
-- **Installation Guide**: [INSTALLATION.md](INSTALLATION.md) for scaffolding new projects
+- **Installation Guide**: [Installation Guide](https://forgelogic.github.io/nojs/installation/) for scaffolding new projects
 - **Design Decisions**: [Design Decisions](https://forgelogic.github.io/nojs/design/design-decisions/) documents key architectural choices
 - **Feature Documentation**:
   - List rendering and TrackBy behavior

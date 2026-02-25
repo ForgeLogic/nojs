@@ -35,6 +35,7 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Getting Started: getting-started.md
+  - Installation: installation.md
   - Architecture:
       - Runtime Architecture: architecture/runtime-architecture.md
       - Router Architecture: architecture/router-architecture.md

@@ -70,7 +70,7 @@ Visit `http://localhost:9090` — the demo app showcases routing, components, li
 
 ### Starting your own project
 
-See **[INSTALLATION.md](INSTALLATION.md)** for a step-by-step guide to creating a new project using the demo app as a scaffold.
+See the **[Installation Guide](https://forgelogic.github.io/nojs/installation/)** for a step-by-step guide to creating a new project using the demo app as a scaffold.
 
 ---
 
@@ -180,7 +180,7 @@ func (c *Counter) Decrement() {
 
 Full documentation is available at **[forgelogic.github.io/nojs](https://forgelogic.github.io/nojs/)**.
 
-- **[Installation Guide](INSTALLATION.md)** — How to create a new project using nojs
+- **[Installation Guide](https://forgelogic.github.io/nojs/installation/)** — How to create a new project using nojs
 - **[Quick Guide](https://forgelogic.github.io/nojs/guides/quick-guide/)** — Practical reference for all framework features
 - **[NoJS Manifesto](https://forgelogic.github.io/nojs/design/manifesto/)** — The principles and philosophy behind every design decision
 - **[Design Decisions](https://forgelogic.github.io/nojs/design/design-decisions/)** — Why certain constraints exist and what trade-offs were made
