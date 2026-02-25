@@ -1,0 +1,51 @@
+name: tests
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.1'
+          cache: true
+
+      - name: Verify modules
+        run: go work sync
+
+      - name: Generate compiler test components
+        working-directory: compiler
+        run: go run ./cmd/nojsc -in=./testcomponents
+
+      - name: Test compiler module
+        working-directory: compiler
+        run: go test ./... -count=1
+
+      - name: Test nojs module
+        working-directory: nojs
+        run: go test ./... -count=1
+
+      - name: Test router module
+        working-directory: router
+        run: go test ./... -count=1
+
+      - name: Test app module
+        working-directory: app
+        run: go test ./... -count=1
