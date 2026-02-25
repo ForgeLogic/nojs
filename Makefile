@@ -1,4 +1,4 @@
-.PHONY: help wasm wasm-prod full full-prod clean serve docs-install docs-build docs-serve
+.PHONY: help wasm wasm-prod full full-prod clean serve lint docs-install docs-build docs-serve
 
 # Variables
 COMPILER_PATH := github.com/ForgeLogic/nojs-compiler/cmd/nojsc
@@ -6,6 +6,7 @@ COMPONENTS_DIR := ./app/internal/app/components
 WASM_OUTPUT := ./app/wwwroot/main.wasm
 MAIN_PATH := ./app/internal/app
 BUILD_TAGS := -tags=dev
+GOLANGCI_LINT := $(shell go env GOPATH)/bin/golangci-lint
 
 # Default serve command (override in Makefile.local)
 SERVE_CMD := python3 -m http.server 9090
@@ -33,7 +34,26 @@ help:
 	@echo ""
 	@echo "Utility:"
 	@echo "  make clean      - Remove generated WASM binary"
+	@echo "  make lint       - Run golangci-lint on all modules"
+	@echo "  make lint-install - Install golangci-lint locally"
 	@echo ""
+
+# Lint: run golangci-lint on all modules
+lint:
+	@echo "🔍 Running golangci-lint on [compiler, nojs] modules..."
+	@go work sync
+	@go run ./compiler/cmd/nojsc -in=./compiler/testcomponents
+	@for dir in compiler nojs; do \
+		echo "🔍 Linting '$$dir...'"; \
+		(cd $$dir && $(GOLANGCI_LINT) run --timeout=1m) || exit 1; \
+	done
+	@echo "✅ Lint complete!"
+
+# Install golangci-lint
+lint-install:
+	@echo "📦 Installing golangci-lint v2.10.1..."
+	@curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin v2.10.1
+	@echo "✅ golangci-lint installed at $(GOLANGCI_LINT)"
 
 # Full build: compile templates + WASM (dev mode)
 full: compile wasm
