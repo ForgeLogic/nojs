@@ -14,7 +14,12 @@ compiler/compiler.exe
 # Ignore the file generated go files in any directory
 /**/*.generated.go
 
+# Ignore files named "nojsc" anywhere
+**/nojsc
+
+# But do not ignore directories named "nojsc"
+!**/nojsc/
+
 compiler/aotcompiler
 core-dev.css
 todo.md
-nojsc
