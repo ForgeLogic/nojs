@@ -39,7 +39,7 @@ Every feature in **nojs** is guided by principles designed for developers who va
     
 - **Unopinionated Foundation:** We provide the core (rendering, lifecycle, type-safety) but leave state management and project structure to you.
 
-> For the full principles behind these decisions, read the [NoJS Manifesto](MANIFESTO.md).
+> For the full principles behind these decisions, read the [NoJS Manifesto](https://forgelogic.github.io/nojs/design/manifesto/).
 
 ---
 
@@ -178,17 +178,17 @@ func (c *Counter) Decrement() {
 
 ## 📖 Documentation
 
-Detailed guides are available in the [`nojs/documentation/`](nojs/documentation/) directory:
+Full documentation is available at **[forgelogic.github.io/nojs](https://forgelogic.github.io/nojs/)**.
 
 - **[Installation Guide](INSTALLATION.md)** — How to create a new project using nojs
-- **[Quick Guide](nojs/documentation/QUICK_GUIDE.md)** — Practical reference for all framework features
-- **[NoJS Manifesto](MANIFESTO.md)** — The principles and philosophy behind every design decision
-- **[Design Decisions](nojs/documentation/DESIGN_DECISIONS.md)** — Why certain constraints exist and what trade-offs were made
-- **[List Rendering](nojs/documentation/LIST_RENDERING.md)** — Working with dynamic lists and `trackBy` optimization
-- **[Router Architecture](nojs/documentation/ROUTER_ARCHITECTURE.md)** — SPA routing and navigation
-- **[Router Layouts](nojs/documentation/ROUTER_ENGINE_LAYOUTS.md)** — Nested layouts and content projection
-- **[Inline Conditionals](nojs/documentation/INLINE_CONDITIONALS.md)** — Conditional rendering in templates
-- **[Text Node Rendering](nojs/documentation/TEXT_NODE_RENDERING.md)** — How text content is processed
+- **[Quick Guide](https://forgelogic.github.io/nojs/guides/quick-guide/)** — Practical reference for all framework features
+- **[NoJS Manifesto](https://forgelogic.github.io/nojs/design/manifesto/)** — The principles and philosophy behind every design decision
+- **[Design Decisions](https://forgelogic.github.io/nojs/design/design-decisions/)** — Why certain constraints exist and what trade-offs were made
+- **[List Rendering](https://forgelogic.github.io/nojs/guides/list-rendering/)** — Working with dynamic lists and `trackBy` optimization
+- **[Router Architecture](https://forgelogic.github.io/nojs/architecture/router-architecture/)** — SPA routing and navigation
+- **[Router Layouts](https://forgelogic.github.io/nojs/architecture/router-layouts/)** — Nested layouts and content projection
+- **[Inline Conditionals](https://forgelogic.github.io/nojs/guides/inline-conditionals/)** — Conditional rendering in templates
+- **[Text Node Rendering](https://forgelogic.github.io/nojs/guides/text-node-rendering/)** — How text content is processed
 
 ---
 

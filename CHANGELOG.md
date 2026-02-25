@@ -72,10 +72,10 @@ This is the first experimental release of **nojs**, a type-safe web framework fo
   - Nested routing with layouts
 
 ##### Documentation
-- **Framework Philosophy**: [MANIFESTO.md](MANIFESTO.md) explains core principles and design philosophy
-- **Quick Start Guide**: [QUICK_GUIDE.md](nojs/documentation/QUICK_GUIDE.md) covers all implemented features
+- **Framework Philosophy**: [Manifesto](https://forgelogic.github.io/nojs/design/manifesto/) explains core principles and design philosophy
+- **Quick Start Guide**: [Quick Guide](https://forgelogic.github.io/nojs/guides/quick-guide/) covers all implemented features
 - **Installation Guide**: [INSTALLATION.md](INSTALLATION.md) for scaffolding new projects
-- **Design Decisions**: [DESIGN_DECISIONS.md](nojs/documentation/DESIGN_DECISIONS.md) documents key architectural choices
+- **Design Decisions**: [Design Decisions](https://forgelogic.github.io/nojs/design/design-decisions/) documents key architectural choices
 - **Feature Documentation**:
   - List rendering and TrackBy behavior
   - Inline conditionals support

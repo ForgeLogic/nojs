@@ -136,8 +136,8 @@ Open **http://localhost:9090** in your browser. The console should print `WebAss
 
 ## Next steps
 
-- Read the [Quick Guide](nojs/documentation/QUICK_GUIDE.md) for a practical reference of all framework features
+- Read the [Quick Guide](https://forgelogic.github.io/nojs/guides/quick-guide/) for a practical reference of all framework features
 - Browse the example components in `app/internal/app/components/` to see working patterns
-- Read the [NoJS Manifesto](MANIFESTO.md) for the design philosophy behind the framework
+- Read the [NoJS Manifesto](https://forgelogic.github.io/nojs/design/manifesto/) for the design philosophy behind the framework
 
 > **Future:** A `nojs-starter` template repository is planned to replace the manual copy step above.

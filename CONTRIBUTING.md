@@ -95,7 +95,7 @@ Before you submit a Pull Request, please ensure your contribution aligns with th
 
 5. **Update Documentation:**
    - Update `README.md` for user-facing changes
-   - Update `/nojs/documentation/` files for architectural changes
+   - Update `docs/` files for architectural changes
    - Add inline comments for complex logic, especially in compiler and VDOM code
 
 ---
@@ -139,7 +139,7 @@ Before submitting, verify:
 - [ ] Build tags are correct for WASM-targeted files (`//go:build js && wasm`)
 - [ ] Tests pass (`go test ./...`)
 - [ ] Commit messages follow Conventional Commits format with detailed rationale
-- [ ] Documentation is updated (README, `/nojs/documentation/`, inline comments)
+- [ ] Documentation is updated (README, `docs/`, inline comments)
 - [ ] No new third-party dependencies (or justified in PR description)
 - [ ] AOT compiler generates valid Go code for test templates
 - [ ] Browser testing completed (Chrome, Firefox, Safari)
@@ -175,9 +175,9 @@ Report violations to the project maintainers.
 
 - Open a [Discussion](https://github.com/ForgeLogic/nojs/discussions) for general questions
 - Use [Issues](https://github.com/ForgeLogic/nojs/issues) for bugs and feature requests
-- Check existing documentation in `/nojs/documentation/`:
-  - [`LIST_RENDERING.md`](nojs/documentation/LIST_RENDERING.md) - List optimization with `trackBy`
-  - [`INLINE_CONDITIONALS.md`](nojs/documentation/INLINE_CONDITIONALS.md) - Template conditional logic
-  - [`ROUTER_ARCHITECTURE.md`](nojs/documentation/ROUTER_ARCHITECTURE.md) - SPA routing system
+- Check existing documentation at [forgelogic.github.io/nojs](https://forgelogic.github.io/nojs/):
+  - [List Rendering](https://forgelogic.github.io/nojs/guides/list-rendering/) - List optimization with `trackBy`
+  - [Inline Conditionals](https://forgelogic.github.io/nojs/guides/inline-conditionals/) - Template conditional logic
+  - [Router Architecture](https://forgelogic.github.io/nojs/architecture/router-architecture/) - SPA routing system
 
 Thank you for contributing to **nojs**! 🚀
