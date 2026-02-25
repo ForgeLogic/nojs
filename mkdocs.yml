@@ -1,0 +1,50 @@
+site_name: nojs Documentation
+site_description: Type-safe web framework for Go + WebAssembly
+site_url: https://forgelogic.github.io/nojs/
+repo_name: ForgeLogic/nojs
+repo_url: https://github.com/ForgeLogic/nojs
+
+theme:
+  name: material
+  palette:
+    - scheme: light
+      primary: blue
+      accent: blue
+      toggle:
+        icon: material/lightbulb-outline
+        name: Switch to dark mode
+    - scheme: slate
+      primary: blue
+      accent: blue
+      toggle:
+        icon: material/lightbulb
+        name: Switch to light mode
+  features:
+    - navigation.sections
+    - navigation.top
+    - search.suggest
+    - content.code.copy
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - tables
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - Architecture:
+      - Runtime Architecture: architecture/runtime-architecture.md
+      - Router Architecture: architecture/router-architecture.md
+      - Router Layouts: architecture/router-layouts.md
+  - Guides:
+      - Quick Guide: guides/quick-guide.md
+      - List Rendering: guides/list-rendering.md
+      - Inline Conditionals: guides/inline-conditionals.md
+      - Signals: guides/signals.md
+      - Text Node Rendering: guides/text-node-rendering.md
+  - Design:
+      - Manifesto: design/manifesto.md
+      - Design Decisions: design/design-decisions.md

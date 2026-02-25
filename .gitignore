@@ -8,18 +8,12 @@ Makefile.local
 *.wasm
 
 # Ignore the compiler binary
-compiler/compiler
-compiler/compiler.exe
+**/nojsc
+!**/nojsc/
 
 # Ignore the file generated go files in any directory
 /**/*.generated.go
 
-# Ignore files named "nojsc" anywhere
-**/nojsc
-
-# But do not ignore directories named "nojsc"
-!**/nojsc/
-
-compiler/aotcompiler
-core-dev.css
-todo.md
+# Documentation build artifacts
+.venv-docs
+site/
