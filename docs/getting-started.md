@@ -136,9 +136,9 @@ Browse the demo app's components at `app/internal/app/components/` to see workin
 
 ### Understand the framework
 
-- **[Architecture Overview](architecture/overview.md)** — How rendering, diffing, and lifecycle work
-- **[AOT Compiler Guide](compiler/how-it-works.md)** — How templates become Go code
-- **[Router Internals](router/internals.md)** — How SPA navigation works
+- **[Architecture Overview](architecture/runtime-architecture.md)** — How rendering, diffing, and lifecycle work
+- **[AOT Compiler Guide](compiler/compiler_architecture.md)** — How templates become Go code
+- **[Router Internals](router/router-architecture.md)** — How SPA navigation works
 
 ---
 

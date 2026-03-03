@@ -44,8 +44,8 @@ nav:
       - Signals: guides/signals.md
   - Architecture:
       - Runtime Architecture: architecture/runtime-architecture.md
-      - Router Architecture: architecture/router-architecture.md
-      - Router Layouts: architecture/router-layouts.md
+      - Router Architecture: router/router-architecture.md
+      - Router Layouts: router/router-layouts.md
   - Design:
       - Manifesto: design/manifesto.md
       - Design Decisions: design/design-decisions.md
