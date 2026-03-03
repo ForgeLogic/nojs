@@ -17,6 +17,7 @@ import (
 // It preserves layout instances across navigations when the layout chain matches.
 type Engine struct {
 	mu               sync.Mutex
+	basePath         string
 	currentPath      string
 	currentRoute     *Route
 	currentParams    map[string]string
@@ -35,8 +36,19 @@ func NewEngine(renderer runtime.Renderer) *Engine {
 	return &Engine{
 		routes:        make(map[string]*Route),
 		renderer:      renderer,
+		basePath:      "",
 		liveInstances: make([]runtime.Component, 0, 4),
 	}
+}
+
+// SetBasePath configures a URL prefix for applications hosted in a subdirectory
+// (for example GitHub Pages project sites like /repo/demo).
+//
+// Route matching still uses app-relative paths (e.g. /counter).
+func (e *Engine) SetBasePath(path string) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.basePath = normalizeBasePath(path)
 }
 
 // SetRenderer sets the renderer on the engine (used after engine creation).
@@ -73,6 +85,8 @@ func (e *Engine) navigateInternal(path string, skipPushState bool) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
+	path = e.toRoutePath(path)
+
 	console.Log("[Engine.Navigate] Called with path:", path)
 
 	if path == "" {
@@ -93,7 +107,7 @@ func (e *Engine) navigateInternal(path string, skipPushState bool) error {
 	if !skipPushState {
 		console.Log("[Engine.Navigate] Updating URL with pushState")
 		history := js.Global().Get("history")
-		history.Call("pushState", nil, "", path)
+		history.Call("pushState", nil, "", e.toBrowserPath(path))
 		console.Log("[Engine.Navigate] URL updated, current location:", js.Global().Get("location").Get("pathname").String())
 	} else {
 		console.Log("[Engine.Navigate] Skipping pushState (popstate event)")
@@ -328,20 +342,29 @@ func (e *Engine) Start(onChange func(chain []runtime.Component, key string)) err
 
 	e.popstateListener = js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 		console.Log("[Engine] popstate event fired")
-		currentPath := js.Global().Get("location").Get("pathname").String()
-		console.Log("[Engine] popstate path:", currentPath)
-		e.navigateInternal(currentPath, true)
+		browserPath := js.Global().Get("location").Get("pathname").String()
+		routePath := e.toRoutePath(browserPath)
+		console.Log("[Engine] popstate path:", browserPath, "-> route:", routePath)
+		e.navigateInternal(routePath, true)
 		return nil
 	})
 	js.Global().Call("addEventListener", "popstate", e.popstateListener)
 	console.Log("[Engine] popstate listener registered")
 
-	initialPath := js.Global().Get("location").Get("pathname").String()
-	console.Log("[Engine.Start] Initial path:", initialPath)
-	if initialPath == "" {
-		initialPath = "/"
+	initialBrowserPath := js.Global().Get("location").Get("pathname").String()
+	e.mu.Lock()
+	if e.basePath == "" {
+		e.basePath = e.inferBasePath(initialBrowserPath)
 	}
-	return e.Navigate(initialPath)
+	routePath := e.toRoutePath(initialBrowserPath)
+	basePath := e.basePath
+	e.mu.Unlock()
+
+	console.Log("[Engine.Start] Initial path:", initialBrowserPath, "base path:", basePath, "route path:", routePath)
+	if routePath == "" {
+		routePath = "/"
+	}
+	return e.Navigate(routePath)
 }
 
 // GetComponentForPath resolves a URL path to its component.
@@ -371,4 +394,104 @@ func (e *Engine) Cleanup() {
 		e.popstateListener.Release()
 		console.Log("[Engine] popstate listener cleaned up")
 	}
+}
+
+func normalizeBasePath(path string) string {
+	if path == "" || path == "/" {
+		return ""
+	}
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+	path = strings.TrimSuffix(path, "/")
+	if path == "" || path == "/" {
+		return ""
+	}
+	return path
+}
+
+func normalizeRoutePath(path string) string {
+	if path == "" {
+		return "/"
+	}
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+	if len(path) > 1 {
+		path = strings.TrimSuffix(path, "/")
+	}
+	if path == "" {
+		return "/"
+	}
+	return path
+}
+
+func (e *Engine) toRoutePath(path string) string {
+	path = normalizeRoutePath(path)
+	if e.basePath == "" {
+		return path
+	}
+	if path == e.basePath {
+		return "/"
+	}
+	if strings.HasPrefix(path, e.basePath+"/") {
+		trimmed := strings.TrimPrefix(path, e.basePath)
+		return normalizeRoutePath(trimmed)
+	}
+	return path
+}
+
+func (e *Engine) toBrowserPath(routePath string) string {
+	routePath = normalizeRoutePath(routePath)
+	if e.basePath == "" {
+		return routePath
+	}
+	if routePath == "/" {
+		return e.basePath + "/"
+	}
+	return e.basePath + routePath
+}
+
+func (e *Engine) inferBasePath(browserPath string) string {
+	hasTrailingSlash := strings.HasSuffix(browserPath, "/")
+	browserPath = normalizeRoutePath(browserPath)
+
+	// If the browser path already matches a route directly, no base path is needed.
+	for _, route := range e.routes {
+		if e.matchesPattern(route.Path, browserPath) {
+			return ""
+		}
+	}
+
+	best := ""
+	for i := 1; i < len(browserPath); i++ {
+		if browserPath[i] != '/' {
+			continue
+		}
+		prefix := browserPath[:i]
+		suffix := browserPath[i:]
+
+		for _, route := range e.routes {
+			if e.matchesPattern(route.Path, suffix) {
+				if len(prefix) > len(best) {
+					best = prefix
+				}
+			}
+		}
+	}
+
+	if best == "" && hasTrailingSlash {
+		trimmed := strings.TrimSuffix(browserPath, "/")
+		if trimmed == "" {
+			trimmed = "/"
+		}
+		for _, route := range e.routes {
+			if route.Path == "/" {
+				best = trimmed
+				break
+			}
+		}
+	}
+
+	return normalizeBasePath(best)
 }
