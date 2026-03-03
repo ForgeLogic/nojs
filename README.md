@@ -43,6 +43,14 @@ Every feature in **nojs** is guided by principles designed for developers who va
 
 ---
 
+## 🎮 Live Demo
+
+Want to see **nojs** in action? Check out the interactive demo at [forgelogic.github.io/nojs/demo](https://forgelogic.github.io/nojs/demo).
+
+The demo showcases core framework features—components, routing, event handling, and list rendering—all running entirely in Go-compiled WebAssembly.
+
+---
+
 ## 🚀 Getting Started
 
 ### Prerequisites
