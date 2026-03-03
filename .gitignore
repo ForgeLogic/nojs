@@ -7,6 +7,9 @@ Makefile.local
 # Ignore all .wasm files
 *.wasm
 
+# Ignore vendored Go runtime JS bridge
+app/wwwroot/wasm_exec.js
+
 # Ignore the compiler binary
 **/nojsc
 !**/nojsc/
