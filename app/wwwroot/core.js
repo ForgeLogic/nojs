@@ -7,21 +7,4 @@ WebAssembly
         console.log("WebAssembly module loaded.");
     }).catch((err) => {
         console.error("Error loading WASM:", err);
-    });;
-
-
-function loadComponent(elementId, filePath) {
-    fetch(filePath)
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Network response was not ok ' + response.statusText);
-            }
-            return response.text();
-        })
-        .then(data => {
-            document.getElementById(elementId).innerHTML = data;
-        })
-        .catch(error => {
-            console.error('There has been a problem with your fetch operation:', error);
-        });
-}
+    });
