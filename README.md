@@ -55,16 +55,7 @@ Every feature in **nojs** is guided by principles designed for developers who va
 
 ### Running the demo app
 
-Clone the repository and build:
-
-```bash
-git clone https://github.com/ForgeLogic/nojs.git
-cd nojs
-make full
-make serve
-```
-
-Visit `http://localhost:9090` — the demo app showcases routing, components, list rendering, and forms.
+For detailed instructions on running the demo app, see the [Getting Started Guide](docs/getting-started.md).
 
 ---
 

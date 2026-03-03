@@ -52,14 +52,12 @@ my-nojs-app/
 
 ---
 
-## Step 3 — Refresh `wasm_exec.js`
+## Step 3 — Copy `wasm_exec.js`
 
-`wasm_exec.js` is the Go WASM runtime bridge and **must match your local Go version**. The copy in `app/wwwroot/` matches the version used during development and may be out of date.
-
-Replace it with the one from your local Go installation:
+`wasm_exec.js` is the Go WASM runtime bridge and **must match your local Go version**. It is not included in the repository and must be copied from your local Go installation:
 
 ```bash
-cp "$(go env GOROOT)/misc/wasm/wasm_exec.js" ./wwwroot/
+cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" ./app/wwwroot/
 ```
 
 > ⚠️ Repeat this step any time you upgrade Go. A mismatched `wasm_exec.js` will silently fail to load the WASM module.

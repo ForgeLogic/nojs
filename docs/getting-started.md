@@ -36,9 +36,12 @@ Clone and run the demo app:
 ```bash
 git clone https://github.com/ForgeLogic/nojs.git
 cd nojs
+cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" ./app/wwwroot/
 make full
 make serve
 ```
+
+> ⚠️ **Important:** `wasm_exec.js` is the Go WASM runtime bridge and **must match your local Go version**. A mismatched `wasm_exec.js` will silently fail to load the WASM module.
 
 Open **http://localhost:9090** in your browser.
 
