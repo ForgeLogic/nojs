@@ -43,6 +43,14 @@ Every feature in **nojs** is guided by principles designed for developers who va
 
 ---
 
+## 🕒 A Note on the Vibe
+
+This is a "free time" project. Whether you're a senior dev or someone just starting with Go or WASM, there is zero pressure here.
+
+We don't have a corporate roadmap or investors to answer to. We care about building the framework correctly, not quickly. Contributions are welcomed at whatever pace your life allows.
+
+---
+
 ## 🎮 Live Demo
 
 Want to see **nojs** in action? Check out the interactive demo at [forgelogic.github.io/nojs/demo](https://forgelogic.github.io/nojs/demo).
@@ -179,30 +187,13 @@ func (c *Counter) Decrement() {
 
 Full documentation is available at **[forgelogic.github.io/nojs](https://forgelogic.github.io/nojs/)**.
 
-- **[Installation Guide](https://forgelogic.github.io/nojs/installation/)** — How to create a new project using nojs
-- **[Quick Guide](https://forgelogic.github.io/nojs/guides/quick-guide/)** — Practical reference for all framework features
-- **[NoJS Manifesto](https://forgelogic.github.io/nojs/design/manifesto/)** — The principles and philosophy behind every design decision
-- **[Design Decisions](https://forgelogic.github.io/nojs/design/design-decisions/)** — Why certain constraints exist and what trade-offs were made
-- **[List Rendering](https://forgelogic.github.io/nojs/guides/list-rendering/)** — Working with dynamic lists and `trackBy` optimization
-- **[Router Architecture](https://forgelogic.github.io/nojs/architecture/router-architecture/)** — SPA routing and navigation
-- **[Router Layouts](https://forgelogic.github.io/nojs/architecture/router-layouts/)** — Nested layouts and content projection
-- **[Inline Conditionals](https://forgelogic.github.io/nojs/guides/inline-conditionals/)** — Conditional rendering in templates
-- **[Text Node Rendering](https://forgelogic.github.io/nojs/guides/text-node-rendering/)** — How text content is processed
-
 ---
 
 ## 🤝 Contributing
 
 **nojs** is an open-source project. We welcome contributions from developers who share our passion for type-safe, performant web tools.
 
-1. Fork the repo.
-    
-2. Create your feature branch.
-    
-3. Ensure your code follows Go-idiomatic patterns.
-    
-4. Submit a Pull Request.
-    
+For detailed contribution guidelines, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
 
