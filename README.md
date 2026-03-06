@@ -175,7 +175,7 @@ func (c *Counter) Decrement() {
 **Counter.gt.html:**
 ```html
 <div class="counter">
-    <h2>Count: {c.Count}</h2>
+    <h2>Count: {Count}</h2>
     <button @onclick="Increment">+</button>
     <button @onclick="Decrement">-</button>
 </div>
