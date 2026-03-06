@@ -2,35 +2,64 @@
 
 First off, thank you for considering contributing to **nojs**! It's people like you who will help make Go a first-class citizen for modern web development.
 
-By contributing to this project, you agree to abide by its terms and the [Apache License 2.0](LICENSE).
+> **Note:** We prioritize a low-pressure, high-quality environment. This is a community project built in our collective free time.
+
+---
+
+## 📖 Table of Contents
+
+1. [🕒 Your Time is Valued](#-your-time-is-valued)
+2. [🎯 Finding a Task](#-finding-a-task)
+3. [🏗️ Our Engineering Philosophy](#️-our-engineering-philosophy)
+4. [🛠️ How Can I Contribute?](#️-how-can-i-contribute)
+5. [📋 Development Workflow](#-development-workflow)
+6. [⚖️ Legal & CLA](#️-legal--cla)
+
+---
+
+## 🕒 Your Time is Valued
+
+We don't use strict deadlines or high-pressure roadmaps. We understand that contributors have jobs, families, and lives.
+
+* **Work at your own pace:** There is no rush.
+* **Life happens:** If you start an issue but can't finish it, just leave a quick comment. No judgment.
+* **Quality over Speed:** We prefer a PR that takes three weeks to be completed over one that takes three hours and breaks our type-safety goals.
+
+## 🎯 Finding a Task
+
+Not sure where to start? Check our **[GitHub Project Board](https://www.google.com/search?q=https://github.com/orgs/ForgeLogic/projects/YOUR_PROJECT_ID)**.
+
+* **`good first issue`**: Small tasks perfect for getting familiar with the AOT compiler and the runtime engine.
+* **`help wanted`**: Well-defined features ready for implementation.
+* **`area: compiler` or `area: runtime`**: If you have specific expertise, filter by these labels.
 
 ---
 
 ## 🏗️ Our Engineering Philosophy
 
-Before you submit a Pull Request, please ensure your contribution aligns with the **nojs** framework philosophy:
+To keep **nojs** lean and performant, all contributions must align with these four pillars:
 
-### 1. **Type Safety Above All**
-- Avoid `interface{}` (or `any`) unless absolutely necessary
-- We prefer compile-time errors over runtime flexibility
-- Components, props, and event handlers must be strongly typed
-- The AOT compiler validates templates at build time, not runtime
+### 1. Type Safety Above All
 
-### 2. **Go-Idiomatic Code**
-- Follow [Effective Go](https://go.dev/doc/effective_go) and [Go Code Review Comments](https://go.dev/wiki/CodeReviewComments)
-- If a pattern doesn't feel like standard Go, it probably doesn't belong in **nojs**
-- Use Go's standard patterns: `for...range`, `if err != nil`, struct embedding, etc.
+* Avoid `interface{}` (or `any`) unless absolutely necessary.
+* We prefer compile-time errors over runtime flexibility.
+* The AOT compiler validates templates at build time.
 
-### 3. **Minimal Dependencies**
-- We aim to keep the framework core lean
-- Before adding a new third-party dependency, consider if the same functionality can be achieved using the Go standard library
-- Current dependencies: `golang.org/x/net`, `golang.org/x/tools`
+### 2. Go-Idiomatic Code
 
-### 4. **Explicit Over Implicit**
-- Manual state updates via `StateHasChanged()`
-- Mandatory `trackBy` keys in list rendering
-- No hidden "magic" – predictable, debuggable data flow
-- Clear component lifecycle and update triggers
+* Follow [Effective Go](https://go.dev/doc/effective_go).
+* If a pattern doesn't feel like standard Go, it likely doesn't belong here.
+* Use standard patterns: `if err != nil`, `for...range`, etc.
+
+### 3. Minimal Dependencies
+
+* Core remains lean. Use the Go standard library whenever possible.
+* Current blessed dependencies: `golang.org/x/net`, `golang.org/x/tools`.
+
+### 4. Explicit Over Implicit
+
+* Manual state updates via `StateHasChanged()`.
+* No hidden "magic" – predictable, debuggable data flow.
 
 ---
 
@@ -38,146 +67,58 @@ Before you submit a Pull Request, please ensure your contribution aligns with th
 
 ### Reporting Bugs
 
-- Check the [Issues](https://github.com/ForgeLogic/nojs/issues) to see if the bug has already been reported
-- If not, open a new issue with:
-  - **Minimal reproducible example** (Go code + `.gt.html` template if applicable)
-  - Your environment: Go version, Browser, OS
-  - Expected vs. actual behavior
-  - Console errors (if browser-related)
+* Check existing [Issues](https://github.com/ForgeLogic/nojs/issues).
+* Provide a **minimal reproducible example** (Go code + `.gt.html` template).
 
 ### Suggesting Enhancements
 
-- We love new ideas, but we are highly selective to avoid "feature creep"
-- Open an issue labeled `enhancement` to discuss the idea **before** spending time on implementation
-- Explain:
-  - How it aligns with the framework's philosophy (type safety, Go idioms, explicitness)
-  - Why existing patterns can't solve the problem
-  - Expected API surface and usage examples
+* Open an issue labeled `enhancement` to discuss the idea **before** coding.
+* We are selective to avoid feature creep.
 
 ### Pull Requests
 
-1. **Fork** the repository and create your branch from `main`
+1. **Fork** and branch from `main`.
+2. **Follow Standards:** Run `gofmt` and use build tags (`//go:build js && wasm`).
+3. **Commit Messages:** Use [Conventional Commits](https://www.conventionalcommits.org/) (e.g., `feat(compiler): add support for slots`).
+4. **Testing:** - Ensure the AOT compiler still generates valid Go code for `nojs/testcomponents/`.
+* Verify changes in at least one modern browser (Chrome, Firefox, or Safari). Mention which one you used in your PR description.
 
-2. **Follow Code Standards:**
-   - Run `gofmt` on all Go files
-   - Use build tags: `//go:build js && wasm` for browser-targeted code
-   - Write tests for new functionality (see `nojs/testcomponents/` for examples)
-   - Ensure all tests pass: `go test ./...`
 
-3. **Commit Message Format:**
-   - Use [Conventional Commits](https://www.conventionalcommits.org/) specification
-   - Format: `type(scope): detailed description of changes with rationale`
-   - Examples:
-     ```
-     feat(compiler): add support for nested component slots
-     
-     This enables parent-child content projection by detecting []*vdom.VNode 
-     fields in layout components and auto-generating injection code in Render() 
-     methods. Resolves #42.
-     
-     fix(vdom): prevent duplicate event listener registration in patch cycle
-     
-     Event listeners were being re-attached on every update due to missing 
-     comparison logic in the differ. Now tracks listener identity to avoid 
-     duplicates, reducing memory leaks in long-lived components.
-     
-     docs(readme): clarify AOT compiler usage with directory scanning
-     
-     Updated CLI examples to show that -in accepts directories, not individual 
-     files. Removed incorrect -out flag documentation.
-     ```
-
-4. **Testing Requirements:**
-   - If modifying the AOT compiler, ensure it generates valid Go code for existing templates in `nojs/testcomponents/`
-   - Add test cases for new features (`.gt.html` templates + expected generated code)
-   - Verify browser compatibility (Chrome, Firefox, Safari) for WASM changes
-   - Test in both development (`-dev` flag) and production mode
-
-5. **Update Documentation:**
-   - Update `README.md` for user-facing changes
-   - Update `docs/` files for architectural changes
-   - Add inline comments for complex logic, especially in compiler and VDOM code
 
 ---
 
 ## 📋 Development Workflow
 
-### Building and Testing Locally
+> [!IMPORTANT]
+> **nojs** relies on an AOT compiler. If you change a `.gt.html` template, you **must** re-run the compiler before building the WASM binary.
 
 ```bash
-# Build the AOT compiler
-cd nojs
-go build ./cmd/nojs-compiler
+# 1. Build the AOT compiler
+cd nojs && go build ./cmd/nojs-compiler
 
-# Compile templates (from app directory)
-cd ../app
+# 2. Compile templates (run from your app directory)
+# This generates the .go files from your .gt.html files
 go run github.com/ForgeLogic/nojs/cmd/nojs-compiler -in ./components -dev
 
-# Build WASM
+# 3. Build WASM
 GOOS=js GOARCH=wasm go build -o wwwroot/main.wasm
 
-# Or use Makefile shortcuts
-make full        # Compile templates + build WASM (dev mode)
-make full-prod   # Compile templates + build WASM (optimized)
-make wasm        # Rebuild WASM only (fast iteration)
-make serve       # Start development server
+# 4. Fast Track (using Makefile)
+make full        # Compile + Build WASM (dev mode)
+make serve       # Start local dev server
+
 ```
-
-### Testing in Browser
-
-1. Start server: `make serve` (or `cd app/wwwroot && python3 -m http.server 9090`)
-2. Open `http://localhost:9090`
-3. Check browser console for:
-   - "WebAssembly module loaded." message
-   - Component render logs (in `-dev` mode)
-   - Any runtime errors
-
-### Code Review Checklist
-
-Before submitting, verify:
-- [ ] Code follows Go idioms and formatting (`gofmt`)
-- [ ] Build tags are correct for WASM-targeted files (`//go:build js && wasm`)
-- [ ] Tests pass (`go test ./...`)
-- [ ] Commit messages follow Conventional Commits format with detailed rationale
-- [ ] Documentation is updated (README, `docs/`, inline comments)
-- [ ] No new third-party dependencies (or justified in PR description)
-- [ ] AOT compiler generates valid Go code for test templates
-- [ ] Browser testing completed (Chrome, Firefox, Safari)
 
 ---
 
-## ⚖️ Contributor License Agreement (CLA)
+## ⚖️ Legal & CLA
 
-By submitting a Pull Request to **nojs**, you agree that:
-
-- Your contribution is your original work
-- You grant **ForgeLogic** a perpetual, worldwide, non-exclusive, no-charge, royalty-free, irrevocable copyright and patent license to use and distribute your contribution as part of the project
-- Your contribution is licensed under the [Apache License 2.0](LICENSE)
-
-This is a standard requirement for open-source projects under Apache 2.0 – you retain copyright, but grant usage rights to the community.
+By contributing to **nojs**, you agree that your work is original and licensed under the [Apache License 2.0](https://www.google.com/search?q=LICENSE). You retain your copyright, but grant the community an irrevocable license to use and distribute your contribution.
 
 ---
 
 ## 🤝 Code of Conduct
 
-We are committed to providing a welcoming and inclusive environment:
+Be respectful. Assume good intent. Focus on constructive technical feedback. We’re all here to build something cool.
 
-- Be respectful and professional in all interactions
-- Focus on constructive feedback
-- Assume good intent
-- Harassment and abusive behavior will not be tolerated
-
-Report violations to the project maintainers.
-
----
-
-## 💡 Questions?
-
-- Open a [Discussion](https://github.com/ForgeLogic/nojs/discussions) for general questions
-- Use [Issues](https://github.com/ForgeLogic/nojs/issues) for bugs and feature requests
-- Check existing documentation at [forgelogic.github.io/nojs](https://forgelogic.github.io/nojs/):
-  - [List Rendering](https://forgelogic.github.io/nojs/guides/list-rendering/) - List optimization with `trackBy`
-  - [Inline Conditionals](https://forgelogic.github.io/nojs/guides/inline-conditionals/) - Template conditional logic
-  - [Router Architecture](https://forgelogic.github.io/nojs/architecture/router-architecture/) - SPA routing system
-
-Thank you for contributing to **nojs**! 🚀
+**Questions?** Start a [Discussion](https://github.com/ForgeLogic/nojs/discussions) or check the docs at [forgelogic.github.io/nojs](https://forgelogic.github.io/nojs/).
