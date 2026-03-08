@@ -3,7 +3,7 @@ module github.com/forgelogic/nojs/compiler
 go 1.25.1
 
 require (
-	github.com/forgelogic/nojs v0.0.1
+	github.com/forgelogic/nojs v0.0.2
 	golang.org/x/net v0.47.0
 	golang.org/x/tools v0.39.0
 )
