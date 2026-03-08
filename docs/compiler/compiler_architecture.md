@@ -1,6 +1,6 @@
 # Compiler Architecture
 
-This document describes the internal structure of the **nojs AOT compiler** (`github.com/ForgeLogic/nojs-compiler`). It explains how the package is organised, what each file is responsible for, and how data flows from a `.gt.html` template to a `.generated.go` file.
+This document describes the internal structure of the **nojs AOT compiler** (`github.com/ForgeLogic/nojs/compiler`). It explains how the package is organised, what each file is responsible for, and how data flows from a `.gt.html` template to a `.generated.go` file.
 
 ---
 

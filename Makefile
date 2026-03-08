@@ -1,7 +1,7 @@
 .PHONY: help wasm wasm-prod full full-prod clean serve lint lint-compiler lint-nojs docs-install docs-build docs-serve
 
 # Variables
-COMPILER_PATH := github.com/ForgeLogic/nojs-compiler/cmd/nojsc
+COMPILER_PATH := github.com/ForgeLogic/nojs/compiler/cmd/nojsc
 COMPONENTS_DIR := ./app/internal/app/components
 WASM_OUTPUT := ./app/wwwroot/main.wasm
 MAIN_PATH := ./app/internal/app

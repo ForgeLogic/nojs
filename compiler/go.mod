@@ -1,4 +1,4 @@
-module github.com/ForgeLogic/nojs-compiler
+module github.com/ForgeLogic/nojs/compiler
 
 go 1.25.1
 

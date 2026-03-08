@@ -355,7 +355,7 @@ make full-prod   # compile templates + build WASM (prod mode)
 Or run the compiler directly:
 
 ```bash
-go run github.com/ForgeLogic/nojs/cmd/nojs-compiler -in ./app/internal/app/components
+go run github.com/ForgeLogic/nojs/cmd/nojs/compiler -in ./app/internal/app/components
 ```
 
 ### File Convention

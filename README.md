@@ -132,7 +132,7 @@ The compiler scans directories for `*.gt.html` files and auto-generates correspo
     make full
     
     # Or run the compiler directly
-    go run github.com/ForgeLogic/nojs/cmd/nojs-compiler -in ./app/internal/app/components
+    go run github.com/ForgeLogic/nojs/cmd/nojs/compiler -in ./app/internal/app/components
     ```
     
     This generates `MyComponent.generated.go` with the `Render()` method.

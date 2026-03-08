@@ -94,11 +94,11 @@ To keep **nojs** lean and performant, all contributions must align with these fo
 
 ```bash
 # 1. Build the AOT compiler
-cd nojs && go build ./cmd/nojs-compiler
+cd nojs && go build ./cmd/nojs/compiler
 
 # 2. Compile templates (run from your app directory)
 # This generates the .go files from your .gt.html files
-go run github.com/ForgeLogic/nojs/cmd/nojs-compiler -in ./components -dev
+go run github.com/ForgeLogic/nojs/cmd/nojs/compiler -in ./components -dev
 
 # 3. Build WASM
 GOOS=js GOARCH=wasm go build -o wwwroot/main.wasm
