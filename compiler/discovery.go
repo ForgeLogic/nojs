@@ -69,7 +69,7 @@ func discoverAndInspectComponents(rootDir string) ([]componentInfo, error) {
 				PascalName:    pascalName,
 				LowercaseName: strings.ToLower(pascalName),
 				PackageName:   pkg.Name,    // Use the package name from the loader.
-				ImportPath:    pkg.PkgPath, // Full import path (e.g., "github.com/ForgeLogic/nojs/appcomponents")
+				ImportPath:    pkg.PkgPath, // Full import path (e.g., "github.com/forgelogic/nojs/appcomponents")
 				Schema:        schema,
 			})
 

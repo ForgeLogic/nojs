@@ -3,7 +3,7 @@
 package router
 
 import (
-	"github.com/ForgeLogic/nojs/runtime"
+	"github.com/forgelogic/nojs/runtime"
 )
 
 // Route defines a path and its component chain (layout hierarchy + page).

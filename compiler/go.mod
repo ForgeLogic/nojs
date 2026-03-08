@@ -1,12 +1,14 @@
-module github.com/ForgeLogic/nojs/compiler
+module github.com/forgelogic/nojs/compiler
 
 go 1.25.1
 
 require (
-	github.com/ForgeLogic/nojs v0.0.1
+	github.com/forgelogic/nojs v0.0.1
 	golang.org/x/net v0.47.0
 	golang.org/x/tools v0.39.0
 )
+
+replace github.com/forgelogic/nojs => ../
 
 require (
 	golang.org/x/mod v0.30.0 // indirect

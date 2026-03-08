@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 
-	compiler "github.com/ForgeLogic/nojs/compiler"
+	compiler "github.com/forgelogic/nojs/compiler"
 )
 
 func main() {

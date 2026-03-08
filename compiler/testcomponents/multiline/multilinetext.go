@@ -1,6 +1,6 @@
 package multiline
 
-import "github.com/ForgeLogic/nojs/runtime"
+import "github.com/forgelogic/nojs/runtime"
 
 // MultilineText is a test component for verifying multi-line HTML tag support.
 type MultilineText struct {

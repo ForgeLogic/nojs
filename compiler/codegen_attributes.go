@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ForgeLogic/nojs/events"
+	"github.com/forgelogic/nojs/events"
 	"golang.org/x/net/html"
 )
 

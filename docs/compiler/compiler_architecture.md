@@ -1,6 +1,6 @@
 # Compiler Architecture
 
-This document describes the internal structure of the **nojs AOT compiler** (`github.com/ForgeLogic/nojs/compiler`). It explains how the package is organised, what each file is responsible for, and how data flows from a `.gt.html` template to a `.generated.go` file.
+This document describes the internal structure of the **nojs AOT compiler** (`github.com/forgelogic/nojs/compiler`). It explains how the package is organised, what each file is responsible for, and how data flows from a `.gt.html` template to a `.generated.go` file.
 
 ---
 
@@ -71,7 +71,7 @@ type componentInfo struct {
     PascalName    string          // e.g. "CounterPage"
     LowercaseName string          // e.g. "counterpage" — used as map key
     PackageName   string          // Go package name (e.g. "pages")
-    ImportPath    string          // Full import path (e.g. "github.com/ForgeLogic/nojs/app/internal/app/components/pages")
+    ImportPath    string          // Full import path (e.g. "github.com/forgelogic/nojs/app/internal/app/components/pages")
     Schema        componentSchema // Introspected props, state, methods, and slot
 }
 ```

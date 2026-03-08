@@ -5,7 +5,7 @@ package pages
 import (
 	"time"
 
-	"github.com/ForgeLogic/nojs/runtime"
+	"github.com/forgelogic/nojs/runtime"
 )
 
 // lifecycleMountCount tracks total mounts across navigations (package-level).

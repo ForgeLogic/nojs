@@ -6,8 +6,8 @@ package trackby
 import (
 	"testing"
 
-	"github.com/ForgeLogic/nojs/compiler/testcomponents"
-	"github.com/ForgeLogic/nojs/vdom"
+	"github.com/forgelogic/nojs/compiler/testcomponents"
+	"github.com/forgelogic/nojs/vdom"
 )
 
 // TestProductList_DotNotationTrackBy_InitialRender verifies that trackBy with dot-notation

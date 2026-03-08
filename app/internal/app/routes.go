@@ -3,11 +3,11 @@
 package main
 
 import (
-	"github.com/ForgeLogic/app/internal/app/components/pages"
-	sharedlayouts "github.com/ForgeLogic/app/internal/app/components/shared/layouts"
-	"github.com/ForgeLogic/app/internal/app/context"
-	router "github.com/ForgeLogic/nojs-router"
-	"github.com/ForgeLogic/nojs/runtime"
+	"github.com/forgelogic/app/internal/app/components/pages"
+	sharedlayouts "github.com/forgelogic/app/internal/app/components/shared/layouts"
+	"github.com/forgelogic/app/internal/app/context"
+	router "github.com/forgelogic/nojs-router"
+	"github.com/forgelogic/nojs/runtime"
 )
 
 func registerRoutes(routerEngine *router.Engine, mainLayout *sharedlayouts.MainLayout, mainLayoutCtx *context.MainLayoutCtx) {

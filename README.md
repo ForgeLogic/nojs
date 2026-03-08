@@ -2,7 +2,7 @@
 
 [![Go Version](https://img.shields.io/badge/Go-1.25%2B-00ADD8?logo=go)](https://go.dev/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-[![Status](https://img.shields.io/badge/Status-MVP%2FExperimental-yellow)](https://github.com/ForgeLogic/nojs)
+[![Status](https://img.shields.io/badge/Status-MVP%2FExperimental-yellow)](https://github.com/forgelogic/nojs)
 
 ### The Type-Safe Web Framework for Go Purists
 
@@ -91,7 +91,7 @@ The repository is organized as a Go workspace:
 - **`app/`** — Example application demonstrating framework features (also the recommended project scaffold)
 - **`go.work`** — Workspace configuration linking all modules
 
-The framework (`github.com/ForgeLogic/nojs`), compiler (`github.com/ForgeLogic/nojs/compiler`), router (`github.com/ForgeLogic/nojs/router`), and app (`github.com/ForgeLogic/app`) are separate modules that work together during development.
+The framework (`github.com/forgelogic/nojs`), compiler (`github.com/forgelogic/nojs/compiler`), router (`github.com/forgelogic/nojs/router`), and app (`github.com/forgelogic/app`) are separate modules that work together during development.
 
 > **Note:** The compiler, router, and demo app are currently co-located in this repository for convenience during active development. Once each reaches a stable API, it will be moved to its own dedicated repository.
 
@@ -132,7 +132,7 @@ The compiler scans directories for `*.gt.html` files and auto-generates correspo
     make full
     
     # Or run the compiler directly
-    go run github.com/ForgeLogic/nojs/cmd/nojs/compiler -in ./app/internal/app/components
+    go run github.com/forgelogic/nojs/cmd/nojs/compiler -in ./app/internal/app/components
     ```
     
     This generates `MyComponent.generated.go` with the `Render()` method.
@@ -154,7 +154,7 @@ Here's a simple counter component to illustrate the framework:
 ```go
 package components
 
-import "github.com/ForgeLogic/nojs/runtime"
+import "github.com/forgelogic/nojs/runtime"
 
 type Counter struct {
     runtime.ComponentBase

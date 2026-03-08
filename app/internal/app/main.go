@@ -3,11 +3,11 @@
 package main
 
 import (
-	sharedlayouts "github.com/ForgeLogic/app/internal/app/components/shared/layouts"
-	"github.com/ForgeLogic/app/internal/app/context"
-	router "github.com/ForgeLogic/nojs-router"
-	"github.com/ForgeLogic/nojs/console"
-	"github.com/ForgeLogic/nojs/runtime"
+	sharedlayouts "github.com/forgelogic/app/internal/app/components/shared/layouts"
+	"github.com/forgelogic/app/internal/app/context"
+	router "github.com/forgelogic/nojs-router"
+	"github.com/forgelogic/nojs/console"
+	"github.com/forgelogic/nojs/runtime"
 )
 
 func main() {

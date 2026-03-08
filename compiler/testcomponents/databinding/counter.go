@@ -1,7 +1,7 @@
 package databinding
 
 import (
-	"github.com/ForgeLogic/nojs/runtime"
+	"github.com/forgelogic/nojs/runtime"
 )
 
 // Counter is a simple test component that demonstrates data binding.
