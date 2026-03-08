@@ -30,7 +30,7 @@ jobs:
           cache-dependency-path: |
             app/go.sum
             compiler/go.sum
-            nojs/go.sum
+            ./go.sum
             router/go.sum
 
       - name: Verify modules
@@ -54,5 +54,5 @@ jobs:
           GOARCH: wasm
         with:
           version: v2.10.1
-          working-directory: nojs
+          working-directory: .
           args: --timeout=1m
