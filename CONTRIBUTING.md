@@ -27,7 +27,7 @@ We don't use strict deadlines or high-pressure roadmaps. We understand that cont
 
 ## 🎯 Finding a Task
 
-Not sure where to start? Check our **[GitHub Project Board](https://www.google.com/search?q=https://github.com/orgs/ForgeLogic/projects/YOUR_PROJECT_ID)**.
+Not sure where to start? Check our **[GitHub Project Board](https://www.google.com/search?q=https://github.com/orgs/forgelogic/projects/YOUR_PROJECT_ID)**.
 
 * **`good first issue`**: Small tasks perfect for getting familiar with the AOT compiler and the runtime engine.
 * **`help wanted`**: Well-defined features ready for implementation.
@@ -67,7 +67,7 @@ To keep **nojs** lean and performant, all contributions must align with these fo
 
 ### Reporting Bugs
 
-* Check existing [Issues](https://github.com/ForgeLogic/nojs/issues).
+* Check existing [Issues](https://github.com/forgelogic/nojs/issues).
 * Provide a **minimal reproducible example** (Go code + `.gt.html` template).
 
 ### Suggesting Enhancements
@@ -98,7 +98,7 @@ cd nojs && go build ./cmd/nojs/compiler
 
 # 2. Compile templates (run from your app directory)
 # This generates the .go files from your .gt.html files
-go run github.com/ForgeLogic/nojs/cmd/nojs/compiler -in ./components -dev
+go run github.com/forgelogic/nojs/cmd/nojs/compiler -in ./components -dev
 
 # 3. Build WASM
 GOOS=js GOARCH=wasm go build -o wwwroot/main.wasm
@@ -121,4 +121,4 @@ By contributing to **nojs**, you agree that your work is original and licensed u
 
 Be respectful. Assume good intent. Focus on constructive technical feedback. We’re all here to build something cool.
 
-**Questions?** Start a [Discussion](https://github.com/ForgeLogic/nojs/discussions) or check the docs at [forgelogic.github.io/nojs](https://forgelogic.github.io/nojs/).
+**Questions?** Start a [Discussion](https://github.com/forgelogic/nojs/discussions) or check the docs at [forgelogic.github.io/nojs](https://forgelogic.github.io/nojs/).

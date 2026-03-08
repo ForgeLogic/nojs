@@ -1,7 +1,7 @@
 package appstate
 
 import (
-	"github.com/ForgeLogic/nojs/signals"
+	"github.com/forgelogic/nojs/signals"
 )
 
 // App-level signals — owned by the app, not the framework.

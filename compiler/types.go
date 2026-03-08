@@ -35,7 +35,7 @@ type componentInfo struct {
 	PascalName    string
 	LowercaseName string
 	PackageName   string
-	ImportPath    string // Full import path (e.g., "github.com/ForgeLogic/nojs/appcomponents")
+	ImportPath    string // Full import path (e.g., "github.com/forgelogic/nojs/appcomponents")
 	Schema        componentSchema
 }
 

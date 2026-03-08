@@ -15,7 +15,7 @@
 ## Step 1 — Clone the repository
 
 ```bash
-git clone https://github.com/ForgeLogic/nojs.git
+git clone https://github.com/forgelogic/nojs.git
 cd nojs
 ```
 
@@ -72,7 +72,7 @@ Open `go.mod` and change the module path to match your project:
 module github.com/YourOrg/your-app
 ```
 
-Update any internal imports that reference `github.com/ForgeLogic/app` to use the new module path.
+Update any internal imports that reference `github.com/forgelogic/app` to use the new module path.
 
 ---
 
@@ -81,11 +81,11 @@ Update any internal imports that reference `github.com/ForgeLogic/app` to use th
 While nojs is in active development the modules are referenced via `replace` directives. Update `go.mod` to point at your local clone of the framework:
 
 ```
-replace github.com/ForgeLogic/nojs => /path/to/nojs/nojs
-replace github.com/ForgeLogic/nojs-router => /path/to/nojs/router
+replace github.com/forgelogic/nojs => /path/to/nojs/nojs
+replace github.com/forgelogic/nojs-router => /path/to/nojs/router
 ```
 
-> **Note:** Once nojs is published to pkg.go.dev, you will be able to use `go get github.com/ForgeLogic/nojs@latest` and remove the `replace` directives.
+> **Note:** Once nojs is published to pkg.go.dev, you will be able to use `go get github.com/forgelogic/nojs@latest` and remove the `replace` directives.
 
 ---
 

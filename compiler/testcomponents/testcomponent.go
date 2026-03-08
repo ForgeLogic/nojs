@@ -1,10 +1,9 @@
 //go:build js || wasm
-// +build js wasm
 
 package testcomponents
 
 import (
-	"github.com/ForgeLogic/nojs/vdom"
+	"github.com/forgelogic/nojs/vdom"
 )
 
 // TestComponent is a sample framework component that demonstrates

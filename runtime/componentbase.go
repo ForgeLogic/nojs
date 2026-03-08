@@ -3,7 +3,7 @@ package runtime
 import (
 	"fmt"
 
-	"github.com/ForgeLogic/nojs/console"
+	"github.com/forgelogic/nojs/console"
 )
 
 // ComponentBase is a struct that components can embed to gain access to the

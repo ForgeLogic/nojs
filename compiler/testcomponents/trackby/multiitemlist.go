@@ -1,6 +1,6 @@
 package trackby
 
-import "github.com/ForgeLogic/nojs/runtime"
+import "github.com/forgelogic/nojs/runtime"
 
 // Item represents a data item with ID for trackBy
 type Item struct {

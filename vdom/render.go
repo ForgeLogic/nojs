@@ -1,12 +1,11 @@
 //go:build js || wasm
-// +build js wasm
 
 package vdom
 
 import (
 	"syscall/js"
 
-	"github.com/ForgeLogic/nojs/console"
+	"github.com/forgelogic/nojs/console"
 )
 
 // eventBinding tracks a DOM listener so it can be removed before releasing the js.Func.

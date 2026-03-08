@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ForgeLogic/nojs/compiler/testcomponents"
-	"github.com/ForgeLogic/nojs/vdom"
+	"github.com/forgelogic/nojs/compiler/testcomponents"
+	"github.com/forgelogic/nojs/vdom"
 )
 
 // TestSingleLineBasicRendering tests that single-line HTML tags with data bindings compile and render correctly.

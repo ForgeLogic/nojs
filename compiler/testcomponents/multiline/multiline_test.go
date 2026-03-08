@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ForgeLogic/nojs/compiler/testcomponents"
-	"github.com/ForgeLogic/nojs/vdom"
+	"github.com/forgelogic/nojs/compiler/testcomponents"
+	"github.com/forgelogic/nojs/vdom"
 )
 
 // TestMultiLineBasicRendering tests that multi-line HTML tags with data bindings compile and render correctly.

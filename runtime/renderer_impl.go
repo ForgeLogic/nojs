@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/ForgeLogic/nojs/vdom"
+	"github.com/forgelogic/nojs/vdom"
 )
 
 // Compile-time assertion to ensure the concrete RendererImpl implements the Renderer interface.

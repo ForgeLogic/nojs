@@ -2,7 +2,7 @@
 
 Signals are reactive, thread-safe values that live **outside the component tree**. They survive route transitions, component unmounts, and re-renders — making them the correct tool for any state that must persist across the component lifecycle.
 
-> **Note — future relocation:** `Signal[T]` is a general-purpose reactive primitive that has no dependency on the framework's runtime, VDOM, or renderer. It currently lives in `github.com/ForgeLogic/nojs/signals` for convenience, but it will be extracted into its own standalone module once the project's module structure matures. No framework APIs depend on this package, so the move will not affect any framework internals — only the import path in your application code will change.
+> **Note — future relocation:** `Signal[T]` is a general-purpose reactive primitive that has no dependency on the framework's runtime, VDOM, or renderer. It currently lives in `github.com/forgelogic/nojs/signals` for convenience, but it will be extracted into its own standalone module once the project's module structure matures. No framework APIs depend on this package, so the move will not affect any framework internals — only the import path in your application code will change.
 
 ---
 
@@ -62,7 +62,7 @@ func NewSignal[T any](initial T) *Signal[T]
 Creates a new signal with an initial value. `T` can be any type — primitive, struct, slice, etc.
 
 ```go
-import "github.com/ForgeLogic/nojs/signals"
+import "github.com/forgelogic/nojs/signals"
 
 var Count    = signals.NewSignal(0)
 var Username = signals.NewSignal("")
@@ -121,12 +121,12 @@ unsub()
 
 ## 4. Defining signals
 
-Signals are application-owned, not framework-owned. The `Signal[T]` type is provided by `github.com/ForgeLogic/nojs/signals`. Declare your app-level signal variables in a dedicated package (e.g. `appstate`) so any component can import them.
+Signals are application-owned, not framework-owned. The `Signal[T]` type is provided by `github.com/forgelogic/nojs/signals`. Declare your app-level signal variables in a dedicated package (e.g. `appstate`) so any component can import them.
 
 ```
 nojs/
   signals/
-    signals.go    ← Signal[T] implementation (github.com/ForgeLogic/nojs/signals)
+    signals.go    ← Signal[T] implementation (github.com/forgelogic/nojs/signals)
 
 app/
   internal/
@@ -138,7 +138,7 @@ app/
 // appstate/appstate.go
 package appstate
 
-import "github.com/ForgeLogic/nojs/signals"
+import "github.com/forgelogic/nojs/signals"
 
 // Add new global signals here as the app grows.
 var RenderCount = signals.NewSignal(1)
@@ -160,8 +160,8 @@ The most common pattern is **reading on mount and writing on user action**:
 package pages
 
 import (
-    "github.com/ForgeLogic/app/internal/appstate"
-    "github.com/ForgeLogic/nojs/runtime"
+    "github.com/forgelogic/app/internal/appstate"
+    "github.com/forgelogic/nojs/runtime"
 )
 
 type RouterParamsPage struct {
@@ -190,7 +190,7 @@ func (c *RouterParamsPage) GoToNext() {
 }
 ```
 
-> The component imports from its own `appstate` package, not directly from `github.com/ForgeLogic/nojs/signals`. This keeps signal declarations centralised and avoids scattering `signals.NewSignal(...)` calls across the codebase.
+> The component imports from its own `appstate` package, not directly from `github.com/forgelogic/nojs/signals`. This keeps signal declarations centralised and avoids scattering `signals.NewSignal(...)` calls across the codebase.
 
 Key points:
 - `OnParametersSet` pulls the latest value from the signal each time the component is (re)mounted — no stale data after navigation.
@@ -206,8 +206,8 @@ Subscribe when a component needs to react to a signal change **without** being r
 
 ```go
 import (
-    "github.com/ForgeLogic/app/internal/appstate"
-    "github.com/ForgeLogic/nojs/runtime"
+    "github.com/forgelogic/app/internal/appstate"
+    "github.com/forgelogic/nojs/runtime"
 )
 
 type LiveCounter struct {

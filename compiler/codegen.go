@@ -80,10 +80,10 @@ import (
 	"fmt"
 	"strconv" // Added for type conversions
 
-	"github.com/ForgeLogic/nojs/console"
-	"github.com/ForgeLogic/nojs/events"
-	"github.com/ForgeLogic/nojs/runtime"
-	"github.com/ForgeLogic/nojs/vdom"%[5]s
+	"github.com/forgelogic/nojs/console"
+	"github.com/forgelogic/nojs/events"
+	"github.com/forgelogic/nojs/runtime"
+	"github.com/forgelogic/nojs/vdom"%[5]s
 )
 
 // ApplyProps copies props from source to the receiver, preserving internal state.

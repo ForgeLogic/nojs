@@ -3,8 +3,8 @@
 package pages
 
 import (
-	"github.com/ForgeLogic/app/internal/appstate"
-	"github.com/ForgeLogic/nojs/runtime"
+	"github.com/forgelogic/app/internal/appstate"
+	"github.com/forgelogic/nojs/runtime"
 )
 
 var routerDemoIDs = []string{"42", "go-wasm", "hello", "framework", "nojs", "2026"}

@@ -34,7 +34,7 @@ The framework follows Go's philosophy: simple, explicit, and focused. No magic. 
 Clone and run the demo app:
 
 ```bash
-git clone https://github.com/ForgeLogic/nojs.git
+git clone https://github.com/forgelogic/nojs.git
 cd nojs
 cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" ./app/wwwroot/
 make full

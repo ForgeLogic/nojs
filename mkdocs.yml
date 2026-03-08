@@ -1,8 +1,8 @@
 site_name: nojs Documentation
 site_description: Type-safe web framework for Go + WebAssembly
 site_url: https://forgelogic.github.io/nojs/
-repo_name: ForgeLogic/nojs
-repo_url: https://github.com/ForgeLogic/nojs
+repo_name: forgelogic/nojs
+repo_url: https://github.com/forgelogic/nojs
 
 theme:
   name: material

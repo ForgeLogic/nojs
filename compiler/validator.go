@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/ForgeLogic/nojs/events"
+	"github.com/forgelogic/nojs/events"
 )
 
 // validateComponentName checks if a component name conflicts with HTML tags.

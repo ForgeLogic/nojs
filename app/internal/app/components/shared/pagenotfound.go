@@ -1,7 +1,7 @@
 package shared
 
 import (
-	"github.com/ForgeLogic/nojs/runtime"
+	"github.com/forgelogic/nojs/runtime"
 )
 
 type PageNotFound struct {

@@ -3,10 +3,10 @@
 package pages
 
 import (
-"github.com/ForgeLogic/nojs/runtime"
+	"github.com/forgelogic/nojs/runtime"
 )
 
 // LandingPage is the home page at "/" — introduces the framework and links to all demo pages.
 type LandingPage struct {
-runtime.ComponentBase
+	runtime.ComponentBase
 }

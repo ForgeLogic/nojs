@@ -78,7 +78,7 @@ The minimal struct — with or without a template — always looks the same:
 package mypackage
 
 import (
-    "github.com/ForgeLogic/nojs/runtime"
+    "github.com/forgelogic/nojs/runtime"
 )
 
 type MyComponent struct {
@@ -102,7 +102,7 @@ The compiler produces `MyComponent.generated.go` with the `Render()` method — 
 If you are writing `Render()` by hand (discouraged for normal components):
 
 ```go
-import "github.com/ForgeLogic/nojs/vdom"
+import "github.com/forgelogic/nojs/vdom"
 
 func (c *MyComponent) Render(r runtime.Renderer) *vdom.VNode {
     return vdom.Div(nil, vdom.NewVNode("p", nil, nil, c.Title))
@@ -208,7 +208,7 @@ Declare signals as package-level variables in a dedicated `appstate` package:
 // appstate/appstate.go
 package appstate
 
-import "github.com/ForgeLogic/nojs/signals"
+import "github.com/forgelogic/nojs/signals"
 
 var Count    = signals.NewSignal(0)
 var Username = signals.NewSignal("")
@@ -293,7 +293,7 @@ No manual diffing API is called from user code; `StateHasChanged()` and navigati
 Attach handlers by placing an adapter on the `OnClick` (or equivalent) field of a VNode:
 
 ```go
-import "github.com/ForgeLogic/nojs/events"
+import "github.com/forgelogic/nojs/events"
 
 func (c *MyComponent) HandleClick(e events.ClickEventArgs) {
     e.PreventDefault()
@@ -355,7 +355,7 @@ make full-prod   # compile templates + build WASM (prod mode)
 Or run the compiler directly:
 
 ```bash
-go run github.com/ForgeLogic/nojs/cmd/nojs/compiler -in ./app/internal/app/components
+go run github.com/forgelogic/nojs/cmd/nojs/compiler -in ./app/internal/app/components
 ```
 
 ### File Convention
@@ -642,9 +642,9 @@ func main() {
 Prefer the provided wrapper packages over raw `syscall/js`:
 
 ```go
-import "github.com/ForgeLogic/nojs/console"
-import "github.com/ForgeLogic/nojs/dialogs"
-import "github.com/ForgeLogic/nojs/sessionStorage"
+import "github.com/forgelogic/nojs/console"
+import "github.com/forgelogic/nojs/dialogs"
+import "github.com/forgelogic/nojs/sessionStorage"
 
 console.Log("value:", 42)
 console.Warn("watch out")

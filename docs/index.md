@@ -28,6 +28,6 @@ nojs is currently MVP/experimental. APIs can change while the framework evolves.
 
 ## Repository
 
-- GitHub: <https://github.com/ForgeLogic/nojs>
+- GitHub: <https://github.com/forgelogic/nojs>
 - Demo app path: `app/`
 - Framework packages: `nojs/`, `compiler/`, `router/`

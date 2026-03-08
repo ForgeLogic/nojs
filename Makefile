@@ -1,7 +1,7 @@
-.PHONY: help wasm wasm-prod full full-prod clean serve lint lint-compiler lint-nojs docs-install docs-build docs-serve
+.PHONY: help wasm wasm-prod full full-prod clean serve lint lint-compiler lint-nojs docs-install docs-build docs-serve compile-compiler
 
 # Variables
-COMPILER_PATH := github.com/ForgeLogic/nojs/compiler/cmd/nojsc
+COMPILER_PATH := github.com/forgelogic/nojs/compiler/cmd/nojsc
 COMPONENTS_DIR := ./app/internal/app/components
 WASM_OUTPUT := ./app/wwwroot/main.wasm
 MAIN_PATH := ./app/internal/app
@@ -27,6 +27,7 @@ help:
 	@echo "Development Mode (with -tags=dev):"
 	@echo "  make wasm       - Build WASM only (skip templates compilation)"
 	@echo "  make full       - Full build (recompile templates and WASM)"
+	@echo "  make compile-compiler - Compile templates in compiler directory"
 	@echo ""
 	@echo "Production Mode (without -tags=dev):"
 	@echo "  make wasm-prod  - Build WASM only (skip templates compilation)"
@@ -74,6 +75,11 @@ full: compile wasm
 compile:
 	@echo "🔨 Compiling templates..."
 	@go run $(COMPILER_PATH) -in=$(COMPONENTS_DIR)
+
+# Compile templates in compiler directory
+compile-compiler:
+	@echo "🔨 Compiling compiler templates..."
+	@go run $(COMPILER_PATH) -in=./compiler/
 
 # Build WASM only (dev mode, templates assumed up-to-date)
 wasm:

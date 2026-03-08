@@ -3,7 +3,7 @@
 package pages
 
 import (
-	"github.com/ForgeLogic/nojs/runtime"
+	"github.com/forgelogic/nojs/runtime"
 )
 
 var techPool = []string{
