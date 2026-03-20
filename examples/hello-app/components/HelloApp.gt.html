@@ -1,0 +1,13 @@
+<div class="card">
+    <h1>👋 Hello, App!</h1>
+    <p class="subtitle">A minimal nojs component. Type your name below.</p>
+
+    <label class="form-label">Your name</label>
+    <input type="text" @oninput="HandleInput" placeholder="Type your name..." />
+
+    {@if HasName}
+        <p class="greeting">Hello, {Name}!</p>
+    {@else}
+        <p class="greeting muted">Hello, World!</p>
+    {@endif}
+</div>
