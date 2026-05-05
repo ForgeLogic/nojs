@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode"
 
 	"golang.org/x/net/html"
 	"golang.org/x/tools/go/packages"
@@ -55,9 +56,13 @@ func discoverAndInspectComponents(rootDir string) ([]componentInfo, error) {
 			pascalName := strings.TrimSuffix(file.Name(), ".gt.html")
 			goFilePath := filepath.Join(packageDir, strings.ToLower(pascalName)+".go")
 
+			if unicode.IsLower(rune(pascalName[0])) {
+				fmt.Fprintf(os.Stderr, "%c error: component filename '%s' has to start with an uppercase letter\n", IconError, pascalName)
+			}
+
 			schema, err := inspectGoFile(goFilePath, pascalName)
 			if err != nil {
-				fmt.Printf("Warning: could not inspect Go file %s: %v\n", goFilePath, err)
+				fmt.Printf("%c Warning: could not inspect Go file %s: %v\n", IconWarning, goFilePath, err)
 				schema = componentSchema{
 					Props:   make(map[string]propertyDescriptor),
 					Methods: make(map[string]methodDescriptor),
@@ -81,7 +86,7 @@ func discoverAndInspectComponents(rootDir string) ([]componentInfo, error) {
 	}
 
 	if len(components) == 0 {
-		fmt.Println("Warning: No component templates (*.gt.html) were found in any Go packages.")
+		fmt.Printf("%c Warning: No component templates (*.gt.html) were found in any Go packages.\n", IconWarning)
 	}
 
 	return components, nil
@@ -251,7 +256,7 @@ func inspectStructInFile(path, structName string) (componentSchema, error) {
 	})
 
 	if !found {
-		return schema, fmt.Errorf("struct '%s' not found in file", structName)
+		return schema, fmt.Errorf("%c error: struct '%s' not found in file", IconError, structName)
 	}
 
 	return schema, nil
@@ -344,8 +349,8 @@ func inspectGoFile(path, structName string) (componentSchema, error) {
 		for _, sf := range slotFields {
 			fieldNames = append(fieldNames, sf.Name)
 		}
-		fmt.Fprintf(os.Stderr, "Compilation Error: could not inspect Go file %s: component '%s' has multiple content slot fields: [%s]. Only one []*vdom.VNode field is allowed per component\n",
-			path, structName, strings.Join(fieldNames, ", "))
+		fmt.Fprintf(os.Stderr, "%c Compilation Error: could not inspect Go file %s: component '%s' has multiple content slot fields: [%s]. Only one []*vdom.VNode field is allowed per component\n",
+			IconError, path, structName, strings.Join(fieldNames, ", "))
 		os.Exit(1)
 	}
 
